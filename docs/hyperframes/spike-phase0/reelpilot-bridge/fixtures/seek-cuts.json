@@ -1,0 +1,39 @@
+{
+  "name": "seek-cuts",
+  "assets": ["footage.mp4"],
+  "props": {
+    "shape": "16:9",
+    "clips": [
+      {
+        "id": "clip-1",
+        "videoUrl": "assets/footage.mp4",
+        "videoWidth": 1920,
+        "videoHeight": 1080,
+        "durationMs": 12000,
+        "transition": { "kind": "cut", "durationMs": 0, "direction": "left" },
+        "shots": [],
+        "presentation": {
+          "background": { "kind": "gradient", "from": "#15171c", "to": "#5b6170" },
+          "animatedBackground": false,
+          "frame": { "radius": 2, "shadow": true, "padding": 0.02 },
+          "intro": { "kind": "none", "durationMs": 1200 },
+          "motionBlur": true,
+          "edit": {
+            "parts": [
+              { "startMs": 0, "removed": false, "speed": 1, "transition": { "kind": "cut", "durationMs": 0, "direction": "left" } },
+              { "startMs": 3000, "removed": true, "speed": 1, "transition": { "kind": "cut", "durationMs": 0, "direction": "left" } },
+              { "startMs": 5000, "removed": false, "speed": 2, "transition": { "kind": "cut", "durationMs": 0, "direction": "left" } }
+            ]
+          },
+          "textStyle": { "animation": "word-rise" },
+          "texts": [],
+          "graphics": [],
+          "lens": {
+            "depthOfField": { "enabled": false, "fStop": 2.8, "maxBlur": 1.2 },
+            "progressiveBlur": { "enabled": false, "from": "bottom", "strength": 0.8, "reach": 0.3 }
+          }
+        }
+      }
+    ]
+  }
+}

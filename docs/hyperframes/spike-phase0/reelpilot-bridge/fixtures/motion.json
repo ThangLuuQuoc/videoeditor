@@ -1,0 +1,135 @@
+{
+ "name": "motion",
+ "assets": [
+  "footage.mp4"
+ ],
+ "props": {
+  "shape": "16:9",
+  "clips": [
+   {
+    "id": "clip-1",
+    "videoUrl": "assets/footage.mp4",
+    "videoWidth": 1920,
+    "videoHeight": 1080,
+    "durationMs": 12000,
+    "transition": {
+     "kind": "cut",
+     "durationMs": 0,
+     "direction": "left"
+    },
+    "shots": [
+     {
+      "atMs": 1500,
+      "shot": {
+       "camera": {
+        "tilt": 10,
+        "turn": -12,
+        "roll": 3,
+        "zoom": 1.6,
+        "focusX": 0.3,
+        "focusY": 0.5
+       },
+       "transitionMs": 900,
+       "easing": "smooth",
+       "drift": 0.3
+      }
+     },
+     {
+      "atMs": 6000,
+      "shot": {
+       "camera": {
+        "tilt": 0,
+        "turn": 0,
+        "roll": 0,
+        "zoom": 2.3,
+        "focusX": 0.75,
+        "focusY": 0.5
+       },
+       "transitionMs": 800,
+       "easing": "snappy",
+       "drift": 0
+      }
+     }
+    ],
+    "presentation": {
+     "background": {
+      "kind": "gradient",
+      "from": "#15171c",
+      "to": "#5b6170"
+     },
+     "animatedBackground": false,
+     "frame": {
+      "radius": 2,
+      "shadow": true,
+      "padding": 0.02
+     },
+     "intro": {
+      "kind": "rise",
+      "durationMs": 1200
+     },
+     "motionBlur": true,
+     "edit": {
+      "parts": [
+       {
+        "startMs": 0,
+        "removed": false,
+        "speed": 1,
+        "transition": {
+         "kind": "cut",
+         "durationMs": 0,
+         "direction": "left"
+        }
+       },
+       {
+        "startMs": 4000,
+        "removed": false,
+        "speed": 1.5,
+        "transition": {
+         "kind": "push",
+         "durationMs": 500,
+         "direction": "left"
+        }
+       }
+      ]
+     },
+     "textStyle": {
+      "animation": "word-rise"
+     },
+     "texts": [
+      {
+       "id": "t1",
+       "atMs": 600,
+       "durationMs": 2600,
+       "text": "Ra mắt tính năng mới",
+       "role": "headline",
+       "animation": null,
+       "x": 0.5,
+       "y": 0.12,
+       "align": "center",
+       "emphasis": "tính năng mới",
+       "track": 1,
+       "size": 1,
+       "color": null,
+       "highlightColor": null,
+       "background": null
+      }
+     ],
+     "graphics": [],
+     "lens": {
+      "depthOfField": {
+       "enabled": false,
+       "fStop": 2.8,
+       "maxBlur": 1.2
+      },
+      "progressiveBlur": {
+       "enabled": false,
+       "from": "bottom",
+       "strength": 0.8,
+       "reach": 0.3
+      }
+     }
+    }
+   }
+  ]
+ }
+}

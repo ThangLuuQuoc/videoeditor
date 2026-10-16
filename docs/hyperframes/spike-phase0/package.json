@@ -1,0 +1,20 @@
+{
+  "name": "spike-phase0",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
+    "gsap": "^3.14.2",
+    "hyperframes": "^0.8.164",
+    "lottie-web": "^5.13.0",
+    "three": "^0.180.0"
+  }
+}

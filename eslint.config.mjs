@@ -85,6 +85,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prisma generated client
     "src/shared/db/generated/**",
+    // Spikes and notes kept with the docs (docs/hyperframes), not app code
+    "docs/**",
   ]),
 ]);
 

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <script type="importmap">
+      { "imports": { "three": "./assets/three.module.min.js" } }
+    </script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #05060a; }
+      #root { position: relative; width: 100%; height: 100%; font-family: "Segoe UI", Arial, sans-serif; }
+      #scene3d { position: absolute; inset: 0; z-index: 0; }
+      #scene3d canvas { display: block; width: 1080px; height: 1920px; }
+      #headline {
+        position: absolute; left: 60px; right: 60px; top: 1380px; z-index: 5;
+        text-align: center; color: #fff; font-size: 84px; font-weight: 800; line-height: 1.1;
+        text-shadow: 0 6px 30px rgba(0, 0, 0, 0.8);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Three.js cannot infer a duration, so data-duration is explicit. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="10"
+         data-width="1080" data-height="1920" data-fps="30">
+      <div id="scene3d" class="clip" data-layout-allow-overflow data-start="0" data-duration="10" data-track-index="0"></div>
+      <h1 id="headline" class="clip" data-start="0.5" data-duration="9" data-track-index="1">Nền 3D<br />theo từng frame</h1>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#headline", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.7)" }, 0.5);
+      tl.to("#headline", { opacity: 0, duration: 0.4 }, 9.1);
+      tl.set({}, {}, 10);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      // The runtime looks for window.THREE.DefaultLoadingManager to wait on asset loads.
+      window.THREE = THREE;
+
+      const W = 1080, H = 1920;
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(W, H, false);
+      document.getElementById("scene3d").appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x05060a, 0.08);
+      const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+      camera.position.set(0, 0, 9);
+
+      scene.add(new THREE.AmbientLight(0x404060, 1.2));
+      const key = new THREE.DirectionalLight(0xffffff, 2.5);
+      key.position.set(3, 5, 6);
+      scene.add(key);
+      const rim = new THREE.PointLight(0xff3366, 40, 20);
+      rim.position.set(-3, -2, 3);
+      scene.add(rim);
+
+      const core = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(1.8, 1),
+        new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.6, roughness: 0.25, flatShading: true }),
+      );
+      core.position.y = 1.2;
+      scene.add(core);
+
+      const wire = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(2.4, 1),
+        new THREE.MeshBasicMaterial({ color: 0xffe600, wireframe: true, transparent: true, opacity: 0.35 }),
+      );
+      wire.position.y = 1.2;
+      scene.add(wire);
+
+      // Deterministic particles: seeded PRNG, never Math.random().
+      let seed = 1337;
+      const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+      const COUNT = 1500;
+      const positions = new Float32Array(COUNT * 3);
+      for (let i = 0; i < COUNT; i++) {
+        positions[i * 3] = (rand() - 0.5) * 14;
+        positions[i * 3 + 1] = (rand() - 0.5) * 24;
+        positions[i * 3 + 2] = (rand() - 0.5) * 10;
+      }
+      const particlesGeo = new THREE.BufferGeometry();
+      particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const particles = new THREE.Points(particlesGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 }));
+      scene.add(particles);
+
+      // Every visual property is a pure function of t (seconds). No requestAnimationFrame loop.
+      function renderAt(t) {
+        core.rotation.set(t * 0.4, t * 0.9, 0);
+        wire.rotation.set(-t * 0.25, -t * 0.5, t * 0.1);
+        const pulse = 1 + 0.06 * Math.sin(t * Math.PI * 2 * 0.5);
+        core.scale.setScalar(pulse);
+        particles.rotation.y = t * 0.05;
+        particles.position.y = -((t * 0.6) % 4);
+        camera.position.x = Math.sin(t * 0.3) * 1.2;
+        camera.lookAt(0, 0.6, 0);
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(Number(e.detail.time) || 0));
+      renderAt(typeof window.__hfThreeTime === "number" ? window.__hfThreeTime : 0);
+    </script>
+  </body>
+</html>

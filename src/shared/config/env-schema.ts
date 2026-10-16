@@ -43,6 +43,8 @@ const envSchema = z.object({
 
   // Remotion company licence key for renders (M5 exports). Optional: not
   // needed for individuals and small teams (see remotion.dev/license).
+  /** Export renderer: HyperFrames (default) or the original Remotion path. */
+  RENDER_ENGINE: z.enum(["hyperframes", "remotion"]).default("hyperframes"),
   REMOTION_LICENSE_KEY: z.string().min(1).optional(),
 
   NEXT_PUBLIC_APP_URL: z.url(),

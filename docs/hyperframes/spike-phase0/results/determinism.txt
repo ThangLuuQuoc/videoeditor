@@ -1,0 +1,5 @@
+determinism,captions-karaoke,frames_differing=0/300
+determinism,lottie-overlay,frames_differing=0/300
+determinism,three-bg,frames_differing=0/300
+determinism rp-motion: 116/265 frames differ
+determinism rp-motion --no-browser-gpu: 79/265 frames differ

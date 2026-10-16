@@ -1,0 +1,25 @@
+built rp-seek-cuts: 1920x1080, 6.500s (195 frames)
+built rp-motion: 1920x1080, 8.833s (265 frames)
+rp-seek-cuts gpu #1 rc=0 rendered in 21.2s
+   frames: 195 rendered, 195 expected
+   exact: 195/195 (100.0%)
+rp-seek-cuts gpu #2 rc=0 rendered in 28.6s
+   frames: 195 rendered, 195 expected
+   exact: 195/195 (100.0%)
+rp-seek-cuts gpu #3 rc=0 rendered in 23.7s
+   frames: 195 rendered, 195 expected
+   exact: 195/195 (100.0%)
+rp-seek-cuts gpu #4 rc=0 rendered in 20.9s
+   frames: 195 rendered, 195 expected
+   exact: 195/195 (100.0%)
+rp-seek-cuts sw #1 rc=0 rendered in 18.1s
+   frames: 195 rendered, 195 expected
+   exact: 195/195 (100.0%)
+rp-seek-cuts sw #2 rc=0 rendered in 5m 12.3s
+   frames: 195 rendered, 195 expected
+   exact: 195/195 (100.0%)
+rp-motion gpu #1 rc=0 rendered in 24.6s
+rp-motion gpu #2 rc=0 rendered in 24.4s
+rp-motion md5 differing: 0/265
+rp-motion PSNR y:inf u:inf v:inf average:inf min:inf max:inf
+DONE

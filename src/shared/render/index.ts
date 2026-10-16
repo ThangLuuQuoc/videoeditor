@@ -6,12 +6,21 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { createInterface } from "node:readline"
 
+import { env } from "@/shared/config/env"
+
 import type { RenderProps } from "@/remotion/Root"
 
-// Remotion (§4): the compositions in src/remotion rendered to MP4 in
-// headless Chrome, with the ffmpeg Remotion ships. Each render runs in its
-// own process (./render-process.ts): the renderer can't load under the
-// worker's "react-server" condition, and Chrome's memory goes with it.
+// The compositions in src/remotion rendered to MP4 in headless Chrome, by
+// HyperFrames (default, ./render-process-hyperframes.ts: Apache-2.0, the
+// compositions bundled with a Remotion shim) or Remotion (§4,
+// ./render-process.ts), picked by RENDER_ENGINE. Each render runs in its own
+// process: the renderers can't load under the worker's "react-server"
+// condition, and Chrome's memory goes with it.
+
+const renderProcess = {
+  hyperframes: "src/shared/render/render-process-hyperframes.ts",
+  remotion: "src/shared/render/render-process.ts",
+} as const
 
 export class RenderError extends Error {}
 
@@ -38,7 +47,7 @@ export async function renderVideo(input: {
         [
           "--import",
           "tsx",
-          resolve(process.cwd(), "src/shared/render/render-process.ts"),
+          resolve(process.cwd(), renderProcess[env.RENDER_ENGINE]),
           jobFile,
         ],
         { stdio: ["ignore", "pipe", "pipe"], signal: input.signal }
@@ -49,7 +58,7 @@ export async function renderVideo(input: {
         try {
           message = JSON.parse(line) as typeof message
         } catch {
-          return // Remotion's own logging
+          return // the renderer's own logging
         }
         if (typeof message.progress === "number") {
           input.onProgress?.(message.progress)

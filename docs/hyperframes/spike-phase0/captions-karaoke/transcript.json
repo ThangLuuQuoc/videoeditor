@@ -1,0 +1,29 @@
+{
+  "language": "vi",
+  "engine": { "name": "manual", "model": "spike-fixture" },
+  "words": [
+    { "text": "Chào",        "startMs": 300,  "endMs": 650 },
+    { "text": "mừng",        "startMs": 650,  "endMs": 1000 },
+    { "text": "các",         "startMs": 1000, "endMs": 1250 },
+    { "text": "bạn",         "startMs": 1250, "endMs": 1600 },
+    { "text": "đến",         "startMs": 1600, "endMs": 1850 },
+    { "text": "với",         "startMs": 1850, "endMs": 2100 },
+    { "text": "ReelPilot",   "startMs": 2100, "endMs": 2900 },
+    { "text": "Hôm",         "startMs": 3200, "endMs": 3450 },
+    { "text": "nay",         "startMs": 3450, "endMs": 3750 },
+    { "text": "chúng",       "startMs": 3750, "endMs": 4000 },
+    { "text": "ta",          "startMs": 4000, "endMs": 4200 },
+    { "text": "thử",         "startMs": 4200, "endMs": 4500 },
+    { "text": "nghiệm",      "startMs": 4500, "endMs": 4900 },
+    { "text": "HyperFrames", "startMs": 4900, "endMs": 5800 },
+    { "text": "Phụ",         "startMs": 6100, "endMs": 6350 },
+    { "text": "đề",          "startMs": 6350, "endMs": 6600 },
+    { "text": "nhảy",        "startMs": 6600, "endMs": 6900 },
+    { "text": "theo",        "startMs": 6900, "endMs": 7150 },
+    { "text": "từng",        "startMs": 7150, "endMs": 7450 },
+    { "text": "từ",          "startMs": 7450, "endMs": 7800 },
+    { "text": "đúng",        "startMs": 8000, "endMs": 8300 },
+    { "text": "chuẩn",       "startMs": 8300, "endMs": 8650 },
+    { "text": "TikTok",      "startMs": 8650, "endMs": 9600 }
+  ]
+}

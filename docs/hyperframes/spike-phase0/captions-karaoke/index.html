@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+      #root { position: relative; width: 100%; height: 100%; font-family: "Segoe UI", Arial, sans-serif; }
+      #aroll { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+      .caption {
+        position: absolute; left: 60px; right: 60px; top: 1280px; z-index: 10;
+        text-align: center; font-size: 92px; font-weight: 900; line-height: 1.15;
+        color: #fff; text-transform: uppercase;
+        -webkit-text-stroke: 6px #000; paint-order: stroke fill;
+        text-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      }
+      .word { display: inline-block; margin: 0 0.12em; transform-origin: 50% 70%; } /* margin keeps gaps when a word scales up */
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="10"
+         data-width="1080" data-height="1920" data-fps="30">
+      <video id="aroll" class="clip" src="assets/aroll.mp4" data-start="0" data-duration="10"
+             data-track-index="0" muted playsinline></video>
+      <audio id="voice" src="assets/voice.wav" data-start="0" data-duration="10"
+             data-track-index="1" data-volume="1"></audio>
+      <div id="cap-001" class="clip caption" data-start="0.3" data-duration="0.95" data-track-index="10"><span class="word" id="w-001">Chào</span> <span class="word" id="w-002">mừng</span> <span class="word" id="w-003">các</span></div>
+      <div id="cap-002" class="clip caption" data-start="1.25" data-duration="0.85" data-track-index="10"><span class="word" id="w-004">bạn</span> <span class="word" id="w-005">đến</span> <span class="word" id="w-006">với</span></div>
+      <div id="cap-003" class="clip caption" data-start="2.1" data-duration="0.8" data-track-index="10"><span class="word" id="w-007">ReelPilot</span></div>
+      <div id="cap-004" class="clip caption" data-start="3.2" data-duration="0.8" data-track-index="10"><span class="word" id="w-008">Hôm</span> <span class="word" id="w-009">nay</span> <span class="word" id="w-010">chúng</span></div>
+      <div id="cap-005" class="clip caption" data-start="4" data-duration="0.9" data-track-index="10"><span class="word" id="w-011">ta</span> <span class="word" id="w-012">thử</span> <span class="word" id="w-013">nghiệm</span></div>
+      <div id="cap-006" class="clip caption" data-start="4.9" data-duration="0.9" data-track-index="10"><span class="word" id="w-014">HyperFrames</span></div>
+      <div id="cap-007" class="clip caption" data-start="6.1" data-duration="0.8" data-track-index="10"><span class="word" id="w-015">Phụ</span> <span class="word" id="w-016">đề</span> <span class="word" id="w-017">nhảy</span></div>
+      <div id="cap-008" class="clip caption" data-start="6.9" data-duration="0.9" data-track-index="10"><span class="word" id="w-018">theo</span> <span class="word" id="w-019">từng</span> <span class="word" id="w-020">từ</span></div>
+      <div id="cap-009" class="clip caption" data-start="8" data-duration="1.6" data-track-index="10"><span class="word" id="w-021">đúng</span> <span class="word" id="w-022">chuẩn</span> <span class="word" id="w-023">TikTok</span></div>
+    </div>
+    <script>
+      // Generated from transcript.json. One paused timeline per composition.
+      const words = [{"id":"w-001","startMs":300,"endMs":650},{"id":"w-002","startMs":650,"endMs":1000},{"id":"w-003","startMs":1000,"endMs":1250},{"id":"w-004","startMs":1250,"endMs":1600},{"id":"w-005","startMs":1600,"endMs":1850},{"id":"w-006","startMs":1850,"endMs":2100},{"id":"w-007","startMs":2100,"endMs":2900},{"id":"w-008","startMs":3200,"endMs":3450},{"id":"w-009","startMs":3450,"endMs":3750},{"id":"w-010","startMs":3750,"endMs":4000},{"id":"w-011","startMs":4000,"endMs":4200},{"id":"w-012","startMs":4200,"endMs":4500},{"id":"w-013","startMs":4500,"endMs":4900},{"id":"w-014","startMs":4900,"endMs":5800},{"id":"w-015","startMs":6100,"endMs":6350},{"id":"w-016","startMs":6350,"endMs":6600},{"id":"w-017","startMs":6600,"endMs":6900},{"id":"w-018","startMs":6900,"endMs":7150},{"id":"w-019","startMs":7150,"endMs":7450},{"id":"w-020","startMs":7450,"endMs":7800},{"id":"w-021","startMs":8000,"endMs":8300},{"id":"w-022","startMs":8300,"endMs":8650},{"id":"w-023","startMs":8650,"endMs":9600}];
+      const tl = gsap.timeline({ paused: true });
+      for (const w of words) {
+        const t = w.startMs / 1000;
+        const d = (w.endMs - w.startMs) / 1000;
+        tl.to("#" + w.id, { color: "#FFE600", scale: 1.15, duration: 0.08, ease: "power2.out" }, t)
+          .to("#" + w.id, { color: "#FFFFFF", scale: 1.0, duration: 0.08, ease: "power2.in" }, t + d);
+      }
+      // Pop-in for each caption line.
+      document.querySelectorAll(".caption").forEach((el) => {
+        const t = Number(el.dataset.start);
+        tl.fromTo(el, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.12, ease: "back.out(2)" }, t);
+      });
+      tl.set({}, {}, 10);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
