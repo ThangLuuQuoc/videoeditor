@@ -1,6 +1,6 @@
 # HyperFrames cho ReelPilot — trạng thái & hướng dẫn làm tiếp
 
-> **Cập nhật:** 16/10/2026 · **Nhánh làm việc:** `hyperframes-export` (đẩy lên `ThangLuuQuoc/videoeditor`)
+> **Cập nhật:** 16/10/2026 (tối) · **Nhánh:** `main` = `hyperframes-export` trên `ThangLuuQuoc/videoeditor`
 > Đọc file này trước tiên khi tiếp tục trên máy khác. Mọi tài liệu kế hoạch và mã thử nghiệm nằm trong `docs/hyperframes/`.
 
 ## 1. Mục tiêu đang làm
@@ -14,9 +14,10 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Spike HyperFrames (phụ đề, Lottie, Three.js) | ✅ xong | `bao-cao-giai-doan-0.md` mục 1–6 |
 | Bridge: composition ReelPilot render qua HyperFrames bằng shim `remotion` | ✅ xong | `bao-cao-giai-doan-0.md` mục 8: seek footage 6/6 lượt × 195/195 frame chính xác, tất định 0/265 frame lệch |
 | Tích hợp vào app: `RENDER_ENGINE=hyperframes` (mặc định) / `remotion` | ✅ code xong, typecheck + lint sạch | xem mục 3 |
-| Render project 2 clip qua `renderVideo()` của app | ✅ chạy được | 14,8s video, 445 frame, render 56s; đúng frame nguồn ở các điểm cắt/2×; font brand kit (Bebas Neue) hiển thị (`spike-phase0/e2e/sample-hyperframes-sheet.png`) |
-| So pixel với bản Remotion cùng props | ⏳ **chưa làm** | bước tiếp theo #1 |
-| Export end-to-end qua worker + DB + S3 (`render-export.test.ts`, Playwright `exports.spec.ts`) | ⏳ **chưa làm** | bước tiếp theo #2 |
+| Render project 2 clip qua `renderVideo()` của app | ✅ chạy được | 14,8s video, 445 frame, render 40s (Remotion: 44s); font brand kit (Bebas Neue) hiển thị |
+| So pixel với bản Remotion cùng props | ✅ **khớp** | 445/445 frame ≥ 34,4 dB PSNR (trung vị 37,2), SSIM ≥ 0,990 — `spike-phase0/e2e/results/` |
+| `render-export.test.ts` (job export thật: Postgres + SeaweedFS S3 + render + upload) | ✅ 2/2 đạt | engine mặc định = HyperFrames; cách chạy ở mục 4 |
+| Playwright `tests/e2e/exports.spec.ts` (qua giao diện, cần build app + worker) | ⏳ **chưa chạy** | bước tiếp theo #1 |
 | Thay `@remotion/player` trong editor bằng `<hyperframes-player>` | ⏳ chưa làm | sau khi export ổn |
 | Viết lại kế hoạch thành v3 theo repo thật | ⏳ chưa làm | `ke-hoach-trien-khai-v2.md` một phần đã lỗi thời |
 
@@ -46,34 +47,41 @@ npm run typecheck && npx eslint src/remotion src/shared/render src/shared/config
 Render thử project 2 clip (không cần DB/S3):
 
 ```bash
-# terminal 1: phục vụ footage thử (Chrome cần URL http như link S3 đã ký)
-cd docs/hyperframes/spike-phase0/reelpilot-bridge/fixtures && python -m http.server 8790 --bind 127.0.0.1
+# terminal 1: phục vụ footage thử qua HTTP có Range (giống link S3 đã ký)
+node docs/hyperframes/spike-phase0/e2e/serve.mjs docs/hyperframes/spike-phase0/reelpilot-bridge/fixtures 8791
 # terminal 2, ở thư mục gốc repo
-RENDER_ENGINE=hyperframes TSX_TSCONFIG_PATH=tsconfig.json \
+SAMPLE_MEDIA_URL=http://127.0.0.1:8791/footage.mp4 RENDER_ENGINE=hyperframes TSX_TSCONFIG_PATH=tsconfig.json \
   node --env-file=docs/hyperframes/spike-phase0/e2e/ci.env --conditions=react-server --import tsx \
   docs/hyperframes/spike-phase0/e2e/render-sample.mts out-hyperframes.mp4
-# so sánh: cùng lệnh với RENDER_ENGINE=remotion (lần đầu Remotion tải Chrome Headless Shell ~190 MB)
+# so sánh: cùng lệnh với RENDER_ENGINE=remotion (lần đầu Remotion tải Chrome Headless Shell ~190 MB), rồi
+#   ffmpeg -i out-remotion.mp4 -i out-hyperframes.mp4 -lavfi "psnr;ssim" -f null -
+# Chạy từng render một: chạy song song trên máy ít RAM, compositor của Remotion đã hết bộ nhớ (exit 3221226505).
 ```
 
 `ci.env` chỉ chứa **giá trị placeholder giống CI** (`.github/workflows/ci.yml`), không có secret thật.
 
-Export end-to-end như CI (Postgres + SeaweedFS trong Docker):
+Export end-to-end như CI (Postgres + SeaweedFS trong Docker). `local.env` dùng cổng **55432/18333** để không đụng các dịch vụ khác đang chạy trên máy; `ci.env` dùng 5432/8333 như CI:
 
 ```bash
-docker run -d --name rp-pg -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=reelpilot -p 5432:5432 postgres:17
-docker run -d --name rp-s3 -p 8333:8333 -v "$PWD/.github/s3-ci.json:/etc/seaweedfs/s3.json:ro" \
+docker run -d --name rp-pg -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=reelpilot -p 55432:5432 postgres:17
+# Git Bash trên Windows: đặt MSYS_NO_PATHCONV=1 và dùng $(cygpath -w "$PWD/.github/s3-ci.json")
+docker run -d --name rp-s3 -p 18333:8333 -v "$PWD/.github/s3-ci.json:/etc/seaweedfs/s3.json:ro" \
   chrislusf/seaweedfs:4.47 server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
-set -a; source docs/hyperframes/spike-phase0/e2e/ci.env; set +a
+set -a; source docs/hyperframes/spike-phase0/e2e/local.env; set +a
 npm run storage:cors -- --create-bucket
 npx prisma migrate deploy
-npx vitest run src/features/exports    # gồm render-export.test.ts (render thật)
+npx vitest run src/features/exports/__tests__/render-export.test.ts --hookTimeout=180000 --testTimeout=600000
 ```
+
+Đã chạy trên máy dev ngày 16/10/2026: **2/2 đạt**. Lần đầu có thể timeout ở `beforeAll` (20s mặc định) vì bước transform chậm, nên phải tăng `--hookTimeout`.
+`npx vitest run` (toàn bộ) **không nạp env** thì có 2 file lỗi sẵn từ trước (`describe-moment`, `graphics`: thiếu biến môi trường). Nạp `local.env` như trên thì hết.
 
 ## 5. Vấn đề đã biết / chỗ dễ kẹt
 
-1. **Lỗi `currentTime` non-finite**: khi server không hỗ trợ HTTP Range (vd. `python -m http.server`), `video.duration` là NaN. Đã xử lý trong shim (`targetTime` không kẹp khi chưa biết duration). S3 thật có hỗ trợ Range.
+1. **Lỗi `currentTime` non-finite**: khi chưa biết `video.duration` (NaN), không được kẹp theo duration. Đã xử lý trong `targetTime`. **Seek không thành công thì render phải fail**: `seekToFrame` thử lại tối đa 30 giây (không gán lại `currentTime` khi đang seek, vì làm vậy sẽ khởi động lại lượt tải), sau đó ném lỗi ra cấp trang để HyperFrames dừng hẳn.
 2. **Font 404**: font của `@fontsource` phải dùng URL tính từ gốc (`publicPath: "/assets"` trong esbuild), vì runtime nạp font tính từ trang.
-3. **Runtime HyperFrames cũng điều khiển mọi `<video>`** (`MutationObserver` trên `video, audio`). Shim phải seek lại mọi video ở **mỗi** `hf-seek` và kiểm tra lại sau `seeked`. Đừng tối ưu bỏ bước này. Xem `bao-cao-giai-doan-0.md` mục 8.3.
+3. **Runtime HyperFrames tự đồng bộ mọi `<video>` nằm trong composition root** theo đồng hồ của composition (hàm chọn: có `data-start` **hoặc** nằm trong `[data-composition-id]`). Vì vậy `#render-stage` (React) được **đặt bên cạnh `#root`, không nằm trong nó** (`render-process-hyperframes.ts`, hàm `page()`). Nếu đặt vào trong, runtime và shim giằng co nhau: frame sai lẻ tẻ (PSNR khoảng 9 dB), video hiện ở thời điểm toàn cục thay vì thời điểm của clip (`spike-phase0/e2e/results/compare-clip2.png`). Shim vẫn seek lại mọi video ở mỗi `hf-seek` để phòng hờ.
+3b. **Nguồn media phải hỗ trợ HTTP Range** (S3, R2, GCS, SeaweedFS đều có). Với server không có Range, Chrome không seek được vào phần chưa tải: render **fail có báo lỗi** (kẹt ở frame 0), không xuất frame sai. Server thử nghiệm có Range: `spike-phase0/e2e/serve.mjs`.
 4. **Thỉnh thoảng gặp `media_readiness_timeout` (45s)**: 1/6 lượt khi render ở chế độ phần mềm. HyperFrames tự chụp lại các frame thiếu, kết quả vẫn đúng nhưng chậm (5 phút). Cần giám sát khi chạy production.
 5. **Bebas Neue không có glyph tiếng Việt** ("ớ" rơi về font dự phòng). Chọn font brand kit có subset `vietnamese`.
 6. **Windows**: `core.autocrlf=true` làm `prettier --check` báo 305 file. Đây là lỗi kết thúc dòng, không phải lỗi code; chạy prettier trên Linux/CI hoặc đặt `core.autocrlf=input`.
@@ -88,8 +96,8 @@ npx vitest run src/features/exports    # gồm render-export.test.ts (render th�
 
 ## 7. Bước tiếp theo (theo thứ tự)
 
-1. Render `render-sample.mts` bằng `RENDER_ENGINE=remotion`, so PSNR/SSIM từng frame với bản HyperFrames (`ffmpeg -lavfi psnr`).
-2. Chạy export end-to-end (mục 4, phần Docker) → `render-export.test.ts` đạt với engine mặc định; sau đó Playwright `tests/e2e/exports.spec.ts`.
+1. Playwright `tests/e2e/exports.spec.ts` (`npm run test:e2e` với `local.env`: tự build app và chạy worker, cần `npx playwright install chromium`).
+2. Thử footage thật (quay màn hình dài, GOP lớn) và project nhiều clip + magnifier + logo; đo thời gian render so với Remotion.
 3. Thêm test hồi quy dùng footage mã vạch (`spike-phase0/reelpilot-bridge/verify.mjs`) vào `src/shared/render/__tests__`.
 4. Dockerfile của worker: cài Chrome cho HyperFrames, đặt `HYPERFRAMES_NO_TELEMETRY=1`.
 5. Ghi quyết định vào `docs/decisions.md`; viết kế hoạch v3.

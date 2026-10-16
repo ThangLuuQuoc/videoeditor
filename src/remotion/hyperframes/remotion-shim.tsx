@@ -158,7 +158,10 @@ export function continueRender(id: number) {
 
 /** Source frame rate of ReelPilot footage (processing converts it to 30fps). */
 const SOURCE_FPS = 30
-const SEEK_TIMEOUT_MS = 10_000
+/** How long one video may take to show its frame before the render fails. */
+const SEEK_TIMEOUT_MS = 30_000
+/** Wait between attempts while the frame isn't seekable yet (still downloading). */
+const SEEK_RETRY_MS = 100
 
 const loaded = (video: HTMLVideoElement) =>
   video.readyState >= 2
@@ -189,39 +192,66 @@ const isAt = (video: HTMLVideoElement, target: number) =>
   video.readyState >= 2 &&
   Math.abs(video.currentTime - target) < 0.25 / SOURCE_FPS
 
+/** Resolves on the first of `events` on `video`, or after `ms`. */
+const nextEvent = (video: HTMLVideoElement, events: string[], ms: number) =>
+  new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer)
+      for (const name of events) video.removeEventListener(name, done)
+      resolve()
+    }
+    const timer = setTimeout(done, ms)
+    for (const name of events) video.addEventListener(name, done)
+  })
+
 /**
- * Seek so the element shows exactly `sourceFrame`, resolving once that frame is decoded.
- * Verifies after `seeked` and retries: another seek (ours or the runtime's) can land in between.
+ * Seek so the element shows exactly `sourceFrame`, resolving once that frame
+ * is decoded. Verifies after `seeked` and retries: another seek (ours or the
+ * runtime's) can land in between, and a time the browser can't seek to yet
+ * (not downloaded, e.g. a server without byte ranges) snaps back. Never
+ * re-seeks while a seek is running: that restarts the download, so the frame
+ * would never arrive. Fails the render after SEEK_TIMEOUT_MS instead of
+ * showing a wrong frame.
  */
 async function seekToFrame(video: HTMLVideoElement, sourceFrame: number) {
   await loaded(video)
   const target = targetTime(video, sourceFrame)
-  for (let attempt = 0; attempt < 4 && !isAt(video, target); attempt++) {
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, SEEK_TIMEOUT_MS)
-      video.addEventListener(
-        "seeked",
-        () => {
-          clearTimeout(timer)
-          resolve()
-        },
-        { once: true }
+  const deadline = Date.now() + SEEK_TIMEOUT_MS
+  while (!isAt(video, target)) {
+    if (Date.now() > deadline) {
+      const failure = {
+        src: video.currentSrc,
+        sourceFrame,
+        at: video.currentTime,
+      }
+      seekFailures.push(failure)
+      const error = new Error(
+        `Video never showed source frame ${sourceFrame} (stuck at ${failure.at.toFixed(3)}s): ${failure.src}`
       )
-      video.currentTime = target
-    })
+      // HyperFrames waits out a rejected seek, but stops on a page error.
+      setTimeout(() => {
+        throw error
+      })
+      throw error
+    }
+    if (video.seeking) {
+      // Let the running seek (and its download) finish.
+      await nextEvent(video, ["seeked", "progress", "error"], SEEK_RETRY_MS * 5)
+      continue
+    }
+    video.currentTime = target
+    await nextEvent(video, ["seeked", "error"], SEEK_RETRY_MS * 10)
+    if (!isAt(video, target)) {
+      // Not seekable there yet: wait for more of the file.
+      await nextEvent(video, ["progress", "canplaythrough"], SEEK_RETRY_MS * 5)
+    }
   }
-  if (!isAt(video, target))
-    seekFailures.push({
-      src: video.currentSrc,
-      sourceFrame,
-      at: video.currentTime,
-    })
 }
 
 /** Mounted videos and the source frame each must show now. */
 const mountedVideos = new Map<HTMLVideoElement, number>()
 
-/** Seeks that never settled on their frame (inspected by the verify step). */
+/** Seeks that never settled on their frame (the render fails on the first). */
 export const seekFailures: { src: string; sourceFrame: number; at: number }[] =
   []
 

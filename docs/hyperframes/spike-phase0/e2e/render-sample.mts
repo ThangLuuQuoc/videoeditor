@@ -10,7 +10,8 @@ import { renderVideo } from "@/shared/render"
 import type { RenderProps } from "@/remotion/RenderVideo"
 import { defaultPresentation } from "@/shared/motion"
 
-const media = "http://127.0.0.1:8790/footage.mp4"
+// SAMPLE_MEDIA_URL: 8790 = python http.server (no byte ranges), 8791 = serve.mjs (ranges, like S3)
+const media = process.env.SAMPLE_MEDIA_URL ?? "http://127.0.0.1:8790/footage.mp4"
 const cut = { kind: "cut", durationMs: 0, direction: "left" } as const
 
 const props: RenderProps = {

@@ -78,15 +78,16 @@ function page(props: RenderProps, frames: number) {
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: ${width}px; height: ${height}px; overflow: hidden; background: #000; }
       #root { position: relative; width: ${width}px; height: ${height}px; }
-      #render-stage { position: absolute; inset: 0; overflow: hidden; }
+      #render-stage { position: absolute; top: 0; left: 0; width: ${width}px; height: ${height}px; overflow: hidden; }
     </style>
   </head>
   <body>
+    <!-- The composition root only sets size and length. The stage sits beside
+         it, over it: the runtime syncs every <video> inside a composition root
+         to the composition's clock, which would fight the shim's exact seeks. -->
     <div id="root" data-composition-id="main" data-start="0" data-duration="${seconds}"
-         data-width="${width}" data-height="${height}" data-fps="${stageFps}" data-no-timeline>
-      <div id="render-stage" class="clip" data-start="0" data-duration="${seconds}"
-           data-track-index="0" data-layout-allow-overflow></div>
-    </div>
+         data-width="${width}" data-height="${height}" data-fps="${stageFps}" data-no-timeline></div>
+    <div id="render-stage"></div>
     <script id="render-props" type="application/json">${inlineJson(props)}</script>
     <script src="assets/stage.js"></script>
   </body>

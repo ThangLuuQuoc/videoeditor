@@ -154,6 +154,16 @@ Lỗi này cũng là nguyên nhân của chuyện "không tất định" ở fix
 
 ---
 
+### 8.5. Tích hợp vào app và so với Remotion (16/10/2026, tối)
+- `renderVideo()` của app với `RENDER_ENGINE=hyperframes` render project 2 clip (cắt, 2×/1,5×, push, camera, font brand kit) trong 40 giây; Remotion mất 44 giây cho cùng props.
+- **So pixel với Remotion:** 445/445 frame có PSNR ≥ 34,4 dB (trung vị 37,2), SSIM ≥ 0,990.
+- **Hai lỗi mới chỉ lộ ra trên project nhiều clip, đều đã sửa:**
+  1. Runtime đồng bộ mọi `<video>` nằm *trong* composition root → `#render-stage` phải nằm *bên cạnh* `#root`.
+  2. Seek thất bại từng âm thầm ra frame sai → giờ thử lại tối đa 30 giây rồi làm render fail.
+- `render-export.test.ts` (Postgres + SeaweedFS + render + upload): 2/2 đạt với engine mặc định.
+- Yêu cầu mới: nguồn media phải hỗ trợ HTTP Range.
+- Chi tiết và lệnh chạy: `README.md`.
+
 ## 9. CÁCH CHẠY LẠI
 
 ```bash
