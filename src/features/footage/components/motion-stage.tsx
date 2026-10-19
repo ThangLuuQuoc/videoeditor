@@ -26,6 +26,7 @@ export const stageAspects = {
   "16:9": "16 / 9",
   "9:16": "9 / 16",
   "1:1": "1 / 1",
+  "4:5": "4 / 5",
 } as const
 export type StageAspect = keyof typeof stageAspects
 

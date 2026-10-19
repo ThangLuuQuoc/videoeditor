@@ -134,6 +134,10 @@ describe("split screens", () => {
     expect(
       splitAreas({ width: 1080, height: 1080, side: "auto" }).stacked
     ).toBe(true)
+    // 4:5 feed: tall, so it stacks too.
+    expect(
+      splitAreas({ width: 1080, height: 1350, side: "auto" }).stacked
+    ).toBe(true)
   })
 
   it("glides in and out, and holds in between", () => {

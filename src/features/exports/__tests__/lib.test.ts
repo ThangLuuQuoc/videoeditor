@@ -13,6 +13,7 @@ describe("downloadFileName", () => {
     expect(downloadFileName("Launch video", "9:16")).toBe(
       "Launch video 9x16.mp4"
     )
+    expect(downloadFileName("Launch video", "4:5")).toBe("Launch video 4x5.mp4")
   })
 
   it("keeps only safe characters and is never empty", () => {

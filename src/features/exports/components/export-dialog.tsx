@@ -44,6 +44,7 @@ const shapeNames: Record<ExportShape, string> = {
   "16:9": "Landscape",
   "9:16": "Portrait",
   "1:1": "Square",
+  "4:5": "Feed",
 }
 
 /** How often the dialog reads a running export's progress. */

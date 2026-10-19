@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 /** The shapes an export can take: the stage's (16:9, 9:16, 1:1). */
-export const exportShapes = ["16:9", "9:16", "1:1"] as const
+export const exportShapes = ["16:9", "9:16", "1:1", "4:5"] as const
 export type ExportShape = (typeof exportShapes)[number]
 export const exportShapeSchema = z.enum(exportShapes)
 

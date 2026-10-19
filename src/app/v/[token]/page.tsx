@@ -19,7 +19,12 @@ import {
 
 const sharedVideo = cache(getSharedVideo)
 
-const aspectOf = { "16:9": "16 / 9", "9:16": "9 / 16", "1:1": "1 / 1" }
+const aspectOf = {
+  "16:9": "16 / 9",
+  "9:16": "9 / 16",
+  "1:1": "1 / 1",
+  "4:5": "4 / 5",
+}
 
 export async function generateMetadata({
   params,

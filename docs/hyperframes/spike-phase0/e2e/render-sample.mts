@@ -15,7 +15,7 @@ const media = process.env.SAMPLE_MEDIA_URL ?? "http://127.0.0.1:8790/footage.mp4
 const cut = { kind: "cut", durationMs: 0, direction: "left" } as const
 
 const props: RenderProps = {
-  shape: "16:9",
+  shape: (process.env.SAMPLE_SHAPE ?? "16:9") as RenderProps["shape"],
   fonts: {
     heading: "Bebas Neue, Inter, sans-serif",
     headingWeight: 400,
