@@ -1,6 +1,5 @@
 "use client"
 
-import { Player, type PlayerRef } from "@remotion/player"
 import { MaximizeIcon, PauseIcon, PlayIcon, SquareIcon } from "lucide-react"
 import {
   useCallback,
@@ -27,6 +26,10 @@ import {
   projectDurationMs,
   type ProjectStageProps,
 } from "@/remotion/compositions/ProjectStage"
+import {
+  StagePlayer,
+  type StagePlayerRef,
+} from "@/remotion/hyperframes/stage-player"
 import { useFullscreen, useSpaceToPlay } from "@/shared/hooks/use-player-keys"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
@@ -57,7 +60,7 @@ export function ProjectPlayer({
   /** Lets the page jump to a time (a clip's start). */
   seekRef?: React.RefObject<((ms: number) => void) | null>
 }) {
-  const playerRef = useRef<PlayerRef>(null)
+  const playerRef = useRef<StagePlayerRef>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const [aspect, setAspect] = useState<StageAspect>("16:9")
   // Where playback was when the shape changed (a new Player resumes there).
@@ -172,7 +175,7 @@ export function ProjectPlayer({
             }}
           >
             {hydrated && (
-              <Player
+              <StagePlayer
                 // A new shape is a new composition size.
                 key={aspect}
                 ref={playerRef}
@@ -186,12 +189,6 @@ export function ProjectPlayer({
                   resumeFrame,
                   Math.max(0, framesFor(durationMs) - 1)
                 )}
-                controls={false}
-                clickToPlay={false}
-                doubleClickToFullscreen={false}
-                spaceKeyToPlayOrPause={false}
-                moveToBeginningWhenEnded={false}
-                acknowledgeRemotionLicense
                 style={{ width: "100%", height: "100%" }}
               />
             )}

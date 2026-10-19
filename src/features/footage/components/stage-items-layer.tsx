@@ -1,6 +1,6 @@
 "use client"
 
-import type { PlayerRef } from "@remotion/player"
+import type { StagePlayerRef } from "@/remotion/hyperframes/stage-player"
 import { useEffect, useRef, useState } from "react"
 
 import { stageFps } from "@/remotion/compositions/FootageStage"
@@ -87,7 +87,7 @@ export function StageItemsLayer({
   onSelect,
   onMove,
 }: {
-  playerRef: React.RefObject<PlayerRef | null>
+  playerRef: React.RefObject<StagePlayerRef | null>
   /** Composition size. */
   width: number
   height: number

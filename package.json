@@ -49,7 +49,6 @@
     "@prisma/client": "^7.10.0",
     "@react-email/components": "^1.0.12",
     "@remotion/bundler": "4.0.529",
-    "@remotion/player": "4.0.529",
     "@remotion/renderer": "4.0.529",
     "ai": "^7.0.114",
     "better-auth": "^1.7.6",

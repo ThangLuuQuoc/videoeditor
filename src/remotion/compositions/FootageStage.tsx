@@ -83,7 +83,7 @@ export type FootageStageProps = {
   /** The video stopped loading (e.g. its signed link expired). */
   onVideoError?: () => void
   /**
-   * The editor's live preview (Remotion Player): persistent videos that
+   * The editor's live preview (StagePlayer): persistent videos that
    * never wait on the network. Renders leave it off for frame-exact parts.
    * (A prop, not getRemotionEnvironment(): that differs between the
    * server's HTML and the browser, which broke hydration.)
@@ -119,7 +119,7 @@ const easeInOutQuart = (t: number) =>
 /**
  * The screen recording on its stage: background, frame, the kept parts of
  * the footage with transitions between them, and the camera moving
- * between shots. The same component plays in the editor (Remotion Player)
+ * between shots. The same component plays in the editor (StagePlayer)
  * and renders the final video (M5), so they always match.
  */
 export function FootageStage({

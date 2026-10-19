@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react"
 import type { Transition } from "@/shared/motion"
 
 /**
- * The footage as the editor's preview plays it (Remotion Player only; the
+ * The footage as the editor's preview plays it (StagePlayer only; the
  * render keeps a Sequence per part, which is frame-exact).
  *
  * A new <video> element per part had to load and seek at every cut, and

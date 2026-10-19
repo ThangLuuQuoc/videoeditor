@@ -22,6 +22,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // The editor plays src/remotion through the same Remotion shim the
+  // HyperFrames export uses (src/remotion/hyperframes): no Remotion runtime
+  // in the app. The Remotion export engine bundles separately (@remotion/bundler).
+  turbopack: {
+    resolveAlias: {
+      remotion: "./src/remotion/hyperframes/remotion-shim.tsx",
+    },
+  },
   // Don't advertise the framework in an X-Powered-By header.
   poweredByHeader: false,
   experimental: {

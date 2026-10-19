@@ -21,7 +21,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Test hồi quy seek trong repo: `src/shared/render/__tests__/hyperframes-seek.test.ts` | ✅ đạt (24s) | footage mã vạch + server có Range; **đã kiểm chứng test fail** khi cố ý làm hỏng shim. Chạy khi có `STORAGE_TESTS` (CI) hoặc `RENDER_TESTS=1` |
 | CI (`.github/workflows/ci.yml`) | ✅ đã thêm bước | cache `~/.cache/puppeteer` + `npx hyperframes browser ensure`, `HYPERFRAMES_NO_TELEMETRY=1`. Repo `videoeditor` **chưa có lượt chạy Actions nào** (cần bật Actions trong Settings) |
 | Playwright `tests/e2e/exports.spec.ts` (qua giao diện: build app + worker + Postgres + SeaweedFS) | ✅ **3/3 đạt** (4,1 phút, 19/10) | export clip + tải về + chia sẻ/tắt chia sẻ; báo export cũ sau khi sửa; export + chia sẻ cả video. Engine = HyperFrames (mặc định, không đặt `RENDER_ENGINE`) |
-| Thay `@remotion/player` trong editor bằng `<hyperframes-player>` | ⏳ chưa làm | sau khi export ổn |
+| Thay `@remotion/player` trong editor | ✅ **`StagePlayer`** (19/10), đã gỡ `@remotion/player` | Playwright desktop toàn bộ: 72 đạt, 1 bỏ qua; **mọi test editor/player đạt** (phát/dừng, J/K/L, bước frame, kéo trên sân khấu, toàn màn hình, project nhiều clip). 3 test export fail trong lần chạy đó vì một thử nghiệm làm render chậm (đã gỡ); **cần chạy lại** `exports.spec.ts`. Lý do không dùng `<hyperframes-player>`: `docs/decisions.md` 2026-10-19 |
 | Viết lại kế hoạch thành v3 theo repo thật | ⏳ chưa làm | `ke-hoach-trien-khai-v2.md` một phần đã lỗi thời |
 
 ## 3. Thay đổi trong mã nguồn (so với ReelPilot `09b152b`)
@@ -37,6 +37,9 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | `src/shared/render/__tests__/hyperframes-seek.test.ts` (mới) | test hồi quy: render footage mã vạch qua HyperFrames, giải mã từng frame, so với `outputLayout` |
 | `.github/workflows/ci.yml` | cache + `npx hyperframes browser ensure`, tắt telemetry |
 | `playwright.config.ts` | cổng test đọc từ `E2E_PORT` (mặc định 3100 như CI) |
+| `src/remotion/hyperframes/stage-player.tsx`, `player-clock.ts` (mới) | player của editor thay `@remotion/player`: đồng hồ `requestAnimationFrame` (có phát ngược), co giãn vừa khung, API `play/pause/seekTo/isPlaying/getCurrentFrame` + sự kiện `frameupdate/seeked/play/pause/ended` |
+| `next.config.ts` | `turbopack.resolveAlias`: `remotion` → shim (app không còn runtime Remotion) |
+| `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx` | dùng `StagePlayer`/`StagePlayerRef` |
 | `src/shared/config/env-schema.ts`, `.env.example` | thêm `RENDER_ENGINE` (`hyperframes` mặc định) |
 | `package.json` | thêm `hyperframes@0.8.164`, `esbuild@0.28.2` (ghim chính xác) |
 
@@ -116,7 +119,6 @@ npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự buil
 1. Chạy toàn bộ Playwright (`npx playwright test`, cả `desktop` và `mobile`) để chắc phần khác của app không bị ảnh hưởng.
 2. Bật GitHub Actions cho `ThangLuuQuoc/videoeditor` và xem CI chạy xanh (bước browser ensure của HyperFrames là bước mới).
 3. Thử footage quay màn hình thật (dài, GOP lớn, VFR) và đo thời gian render so với Remotion.
-4. Thay `@remotion/player` trong editor bằng `<hyperframes-player>` (preview = render): `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx`.
 5. Viết kế hoạch v3; Dockerfile worker khi tới phần deploy.
 
 ## 8. Bản đồ tài liệu

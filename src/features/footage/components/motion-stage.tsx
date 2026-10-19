@@ -1,6 +1,5 @@
 "use client"
 
-import { Player, type PlayerRef } from "@remotion/player"
 import { CrosshairIcon } from "lucide-react"
 import { useEffect, useMemo, useRef } from "react"
 
@@ -13,6 +12,10 @@ import {
   type FootageStageProps,
 } from "@/remotion/compositions/FootageStage"
 import type { StageFonts } from "@/remotion/components/TextLayer"
+import {
+  StagePlayer,
+  type StagePlayerRef,
+} from "@/remotion/hyperframes/stage-player"
 
 import { cn } from "@/shared/lib/utils"
 
@@ -27,9 +30,9 @@ export const stageAspects = {
 export type StageAspect = keyof typeof stageAspects
 
 /**
- * The clip on its stage, played by Remotion's Player: the same
- * composition (src/remotion) renders the final video, so the preview is
- * what gets rendered. Time and play state are reported to the editor.
+ * The clip on its stage, played by the StagePlayer: the same composition
+ * (src/remotion, through the same Remotion shim) renders the final video,
+ * so the preview is what gets rendered. Time and play state are reported to the editor.
  */
 export function MotionStage({
   playerRef,
@@ -60,7 +63,7 @@ export function MotionStage({
   interactive = false,
   bare = false,
 }: {
-  playerRef: React.RefObject<PlayerRef | null>
+  playerRef: React.RefObject<StagePlayerRef | null>
   videoUrl: string
   posterUrl: string | null
   videoWidth: number
@@ -191,7 +194,7 @@ export function MotionStage({
         }}
         data-testid="motion-stage"
       >
-        <Player
+        <StagePlayer
           // A new shape is a new composition size.
           key={aspect}
           ref={playerRef}
@@ -206,14 +209,7 @@ export function MotionStage({
           // Read once, when a new shape mounts a new Player.
           // eslint-disable-next-line react-hooks/refs
           initialFrame={lastFrame.current}
-          controls={false}
-          clickToPlay={false}
-          doubleClickToFullscreen={false}
-          spaceKeyToPlayOrPause={false}
-          moveToBeginningWhenEnded={false}
           playbackRate={playbackRate}
-          // The owner reviews Remotion's licence terms (build plan §17).
-          acknowledgeRemotionLicense
           style={{ width: "100%", height: "100%" }}
         />
         {interactive && !pickingFocus && onSelectItem && onMoveItem && (

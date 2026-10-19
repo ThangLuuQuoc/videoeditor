@@ -21,7 +21,7 @@ import {
   VideoIcon,
   WandSparklesIcon,
 } from "lucide-react"
-import type { PlayerRef } from "@remotion/player"
+import type { StagePlayerRef } from "@/remotion/hyperframes/stage-player"
 import {
   useCallback,
   useEffect,
@@ -191,8 +191,8 @@ const prefersReducedMotion = () =>
 const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform)
 const noSubscribe = () => () => {}
 
-/** Playback through the Remotion Player (frames at the stage's fps). */
-const playerTime = (player: PlayerRef | null) =>
+/** Playback through the StagePlayer (frames at the stage's fps). */
+const playerTime = (player: StagePlayerRef | null) =>
   player ? (player.getCurrentFrame() / stageFps) * 1000 : 0
 
 /** Where Space types a space: text fields, not buttons or sliders. */
@@ -314,7 +314,7 @@ export function FootageEditor({
     addClipHref: string
   } | null
 }) {
-  const playerRef = useRef<PlayerRef>(null)
+  const playerRef = useRef<StagePlayerRef>(null)
   const [links, renewLinks] = useStableLinks(clip.id, {
     videoUrl,
     posterUrl,

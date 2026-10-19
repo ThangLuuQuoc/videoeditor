@@ -1,5 +1,5 @@
 import { createReadStream, statSync } from "node:fs"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises"
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
@@ -178,7 +178,16 @@ describe.runIf(runs)("HyperFrames render: footage seeks", () => {
     for (let f = 0; f < pixels.length / frameBytes; f++) {
       decoded.push(decodeBarcode(pixels, f * frameBytes))
     }
-    expect(decoded).toEqual(expected)
+    const wrong = decoded.flatMap((got, frame) =>
+      got === expected[frame] ? [] : [{ frame, got, want: expected[frame] }]
+    )
+    if (wrong.length > 0) {
+      // Keep the render for a look (CI: upload it as an artifact).
+      const kept = join(tmpdir(), `reelpilot-seek-failure-${Date.now()}.mp4`)
+      await copyFile(output, kept)
+      console.error(`Wrong frames kept in ${kept}:`, JSON.stringify(wrong))
+    }
+    expect(wrong).toEqual([])
   }, 600_000)
 })
 
