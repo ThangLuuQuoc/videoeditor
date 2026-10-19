@@ -22,7 +22,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | CI (`.github/workflows/ci.yml`) | ✅ đã thêm bước | cache `~/.cache/puppeteer` + `npx hyperframes browser ensure`, `HYPERFRAMES_NO_TELEMETRY=1`. Repo `videoeditor` **chưa có lượt chạy Actions nào** (cần bật Actions trong Settings) |
 | Playwright `tests/e2e/exports.spec.ts` (qua giao diện: build app + worker + Postgres + SeaweedFS) | ✅ **3/3 đạt** (4,1 phút, 19/10) | export clip + tải về + chia sẻ/tắt chia sẻ; báo export cũ sau khi sửa; export + chia sẻ cả video. Engine = HyperFrames (mặc định, không đặt `RENDER_ENGINE`) |
 | Thay `@remotion/player` trong editor | ✅ **`StagePlayer`** (19/10), đã gỡ `@remotion/player` | Playwright desktop toàn bộ: 72 đạt, 1 bỏ qua; **mọi test editor/player đạt** (phát/dừng, J/K/L, bước frame, kéo trên sân khấu, toàn màn hình, project nhiều clip). Chạy lại `exports.spec.ts` với player mới: **3/3 đạt** (3,4 phút). Lý do không dùng `<hyperframes-player>`: `docs/decisions.md` 2026-10-19 |
-| Viết lại kế hoạch thành v3 theo repo thật | ⏳ chưa làm | `ke-hoach-trien-khai-v2.md` một phần đã lỗi thời |
+| Kế hoạch V3 theo repo thật | ✅ `ke-hoach-v3.md` (19/10) | thay `ke-hoach-trien-khai-v2.md` |
 
 ## 3. Thay đổi trong mã nguồn (so với ReelPilot `09b152b`)
 
@@ -117,19 +117,17 @@ npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự buil
 - **License Remotion**: nếu công ty thuộc diện miễn phí (≤ 3 người) thì lý do chuyển engine chủ yếu là định hướng dài hạn. Cần xác nhận lại trên remotion.pro.
 - D1–D4 trong `ke-hoach-trien-khai-v2.md` mục 3. D1 (nguồn dữ liệu gốc) coi như đã có đáp án: `src/shared/motion`.
 
-## 7. Bước tiếp theo (theo thứ tự)
+## 7. Bước tiếp theo
 
-1. Chạy toàn bộ Playwright (`npx playwright test`, cả `desktop` và `mobile`) để chắc phần khác của app không bị ảnh hưởng.
-2. Bật GitHub Actions cho `ThangLuuQuoc/videoeditor` và xem CI chạy xanh (bước browser ensure của HyperFrames là bước mới).
-3. Thử footage quay màn hình thật (dài, GOP lớn, VFR) và đo thời gian render so với Remotion.
-5. Viết kế hoạch v3; Dockerfile worker khi tới phần deploy.
+Theo **`ke-hoach-v3.md`** mục 5 (lộ trình M6–M11) và mục 8 (việc ngay tiếp theo). Playwright bản mobile và GitHub Actions: chủ dự án tạm gác lại (19/10/2026).
 
 ## 8. Bản đồ tài liệu
 
 | File | Nội dung |
 | :--- | :--- |
 | `README.md` | (file này) trạng thái + làm tiếp |
-| `ke-hoach-trien-khai-v2.md` | kế hoạch v2 (trước khi đọc mã thật; một phần lỗi thời) |
+| `ke-hoach-v3.md` | **kế hoạch hiện hành**: mục tiêu, quyết định cần chốt, KPI, milestone M6–M11, rủi ro |
+| `ke-hoach-trien-khai-v2.md` | kế hoạch v2 (đã được thay bằng V3; giữ để tham khảo) |
 | `so-sanh-remotion-hyperframes.md` | so sánh Remotion và HyperFrames, đã đối chiếu docs ngày 16/10/2026 |
 | `bao-cao-giai-doan-0.md` | số đo spike, phát hiện kỹ thuật, kết quả bridge |
 | `spike-phase0/` | mã spike: 3 composition mẫu, `bench.sh`, `reelpilot-bridge/` (shim gốc, mã vạch, verify), `e2e/render-sample.mts`, kết quả và ảnh frame |

@@ -4,7 +4,7 @@
 > **Phiên bản kế hoạch:** v2 — cập nhật 16/10/2026  
 > **Mục tiêu:** Chuyển sang kiến trúc Video-as-Code mã nguồn mở (Apache 2.0) với **HyperFrames**, **tận dụng tối đa các adapter và hạ tầng render có sẵn** thay vì tự viết lại, và dồn nguồn lực vào các tính năng tạo ra giá trị cho người dùng.  
 > **Địa điểm lưu trữ:** `docs/hyperframes/ke-hoach-trien-khai-v2.md`  
-> ⚠️ **Một phần đã lỗi thời** sau khi đọc mã ReelPilot thật (16/10/2026): xem `README.md` (trạng thái hiện tại) và `bao-cao-giai-doan-0.md` mục 7–8. Viết lại thành v3 là việc còn mở.
+> ⛔ **Đã được thay bằng `ke-hoach-v3.md` (19/10/2026).** Giữ lại để tham khảo; nhiều giả định ở đây sai so với mã ReelPilot thật (xem V3 mục 1.3).
 
 ### Thay đổi so với v1
 
