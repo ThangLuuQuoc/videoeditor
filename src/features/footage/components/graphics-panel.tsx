@@ -10,6 +10,8 @@ import {
   FlagIcon,
   FocusIcon,
   KeyboardIcon,
+  ListChecksIcon,
+  ListOrderedIcon,
   MessageSquareIcon,
   MousePointerClickIcon,
   PanelBottomIcon,
@@ -39,6 +41,7 @@ import { Button } from "@/shared/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
 import { Spinner } from "@/shared/ui/spinner"
+import { Textarea } from "@/shared/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
 import { formatTimecode } from "../lib/format"
@@ -64,6 +67,8 @@ const icons: Record<
   keys: KeyboardIcon,
   stat: TrendingUpIcon,
   "lower-third": PanelBottomIcon,
+  list: ListChecksIcon,
+  step: ListOrderedIcon,
   logo: AwardIcon,
   "end-card": FlagIcon,
   slide: PresentationIcon,
@@ -77,6 +82,8 @@ const hasSurface = (kind: GraphicKind) =>
     "keys",
     "stat",
     "lower-third",
+    "list",
+    "step",
     "end-card",
     "slide",
     "split",
@@ -353,21 +360,36 @@ function GraphicInspector({
       {info.secondary && (
         <Field>
           <FieldLabel htmlFor="graphic-secondary">{info.secondary}</FieldLabel>
-          <Input
-            id="graphic-secondary"
-            value={item.secondary}
-            maxLength={graphicLimits.text}
-            placeholder={
-              item.kind === "end-card"
-                ? "Get started"
-                : isLayoutGraphic(item.kind)
-                  ? "Optional line under the title"
-                  : ""
-            }
-            onChange={(event) =>
-              onUpdate({ secondary: event.target.value }, "secondary")
-            }
-          />
+          {item.kind === "list" ? (
+            <Textarea
+              id="graphic-secondary"
+              value={item.secondary}
+              maxLength={graphicLimits.lines}
+              rows={5}
+              placeholder={"2 eggs\n200 g flour"}
+              onChange={(event) =>
+                onUpdate({ secondary: event.target.value }, "secondary")
+              }
+            />
+          ) : (
+            <Input
+              id="graphic-secondary"
+              value={item.secondary}
+              maxLength={graphicLimits.text}
+              placeholder={
+                item.kind === "end-card"
+                  ? "Get started"
+                  : item.kind === "step"
+                    ? "Step 1"
+                    : isLayoutGraphic(item.kind)
+                      ? "Optional line under the title"
+                      : ""
+              }
+              onChange={(event) =>
+                onUpdate({ secondary: event.target.value }, "secondary")
+              }
+            />
+          )}
         </Field>
       )}
       {info.secondary && (

@@ -22,6 +22,8 @@ export const graphicKinds = [
   "keys",
   "stat",
   "lower-third",
+  "list",
+  "step",
   "logo",
   "end-card",
   // Layouts: the whole stage
@@ -131,6 +133,20 @@ export const graphicInfo: Record<
     text: "Title",
     secondary: "Line",
   },
+  list: {
+    label: "Checklist",
+    hint: "A title and lines that tick in one by one: ingredients, a kit list.",
+    durationMs: 4000,
+    text: "Title",
+    secondary: "Lines (one per line)",
+  },
+  step: {
+    label: "Step",
+    hint: "A numbered badge and what to do: \"Step 2/5 · Whisk the eggs\".",
+    durationMs: 3500,
+    text: "What to do",
+    secondary: "Badge",
+  },
   logo: {
     label: "Logo reveal",
     hint: "Your logo resolves into view.",
@@ -165,7 +181,12 @@ export const graphicInfo: Record<
 export const isLayoutGraphic = (kind: GraphicKind) =>
   kind === "slide" || kind === "split"
 
-export const graphicLimits = { items: 30, text: 140 } as const
+export const graphicLimits = {
+  items: 30,
+  text: 140,
+  /** A checklist's lines, one per line. */
+  lines: 400,
+} as const
 
 const unit = z.number().min(0).max(1)
 
@@ -204,7 +225,7 @@ export const graphicItemSchema = z.object({
   /** Screen graphics: the area on the recording (0–1 of the frame). */
   box: graphicBoxSchema.default({ x: 0.38, y: 0.4, w: 0.24, h: 0.2 }),
   text: z.string().max(graphicLimits.text).default(""),
-  secondary: z.string().max(graphicLimits.text).default(""),
+  secondary: z.string().max(graphicLimits.lines).default(""),
   /**
    * Callouts: which side of the box the label sits on. Splits: the
    * video's side (left, or top when the stage stacks; right = bottom).

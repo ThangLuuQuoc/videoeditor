@@ -111,3 +111,80 @@ test("a template on every clip of a video, undone in one step", async ({
   await expect(page.getByRole("button", { name: "Template" })).toBeVisible()
   expect(consoleProblems).toEqual([])
 })
+
+test("a recipe becomes a titled, step-by-step video in one undo step", async ({
+  page,
+  signedInUser: _user,
+  consoleProblems,
+}) => {
+  test.skip(!hasStorage, "Needs a bucket (NEON_BRANCH or STORAGE_TESTS)")
+  test.setTimeout(150_000)
+  // 16s: room for the intro, the ingredients and two steps, not six.
+  const video = await makeTestVideo(16)
+  await createKitByHand(page)
+  await page.getByRole("tab", { name: "Footage" }).click()
+  await page.getByTestId("footage-file").setInputFiles(video)
+  const card = page.getByRole("listitem").filter({ hasText: "Product demo" })
+  await expect(card.getByText("Ready")).toBeVisible({ timeout: 90_000 })
+  await card.getByRole("link", { name: "Product demo" }).click()
+  const tools = page.getByRole("tablist", { name: "Editor tools" })
+  const graphicsList = page.getByRole("list", { name: "Graphics on the ad" })
+
+  await tools.getByRole("tab", { name: "Templates" }).click()
+  const form = page.getByRole("form", { name: "Recipe" })
+  await form.getByRole("textbox", { name: "Dish" }).fill("Garlic noodles")
+  await form
+    .getByRole("textbox", { name: "Line under the name" })
+    .fill("15 min · serves 2")
+  await form
+    .getByRole("textbox", { name: "Ingredients" })
+    .fill("- 200 g noodles\n- 3 cloves garlic")
+  const steps = form.getByRole("textbox", { name: "Steps" })
+  await steps.fill("Boil\nDrain\nMelt butter\nAdd garlic\nToss\nServe")
+  await form.getByRole("button", { name: "Tiếng Việt" }).click()
+  await expect(
+    form.getByRole("button", { name: "Tiếng Việt" })
+  ).toHaveAttribute("aria-pressed", "true")
+  await expectNoViolations(page)
+
+  // Six steps don't fit in 16 seconds: it says so and changes nothing.
+  await form.getByRole("button", { name: "Build recipe video" }).click()
+  await expect(form.getByRole("alert")).toContainText("6 steps need")
+
+  await steps.fill("1. Boil the noodles\n2. Toss with garlic butter")
+  await form.getByRole("button", { name: "Build recipe video" }).click()
+  await expect(page.getByText("Recipe video built")).toBeVisible()
+  await expect(form.getByRole("alert")).toHaveCount(0)
+  await expect(
+    form.getByRole("button", { name: "Rebuild recipe video" })
+  ).toBeVisible()
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+
+  // Title, checklist, two numbered steps and the end card.
+  await tools.getByRole("tab", { name: "Graphics" }).click()
+  await expect(graphicsList.getByRole("listitem")).toHaveCount(5)
+  await expect(graphicsList.getByText(/Nguyên liệu/)).toBeVisible()
+  await expect(graphicsList.getByText(/Toss with garlic butter/)).toBeVisible()
+
+  // One undo step takes it all back; redo brings it again.
+  await page.getByRole("button", { name: /^Undo \(/ }).click()
+  await expect(graphicsList.getByRole("listitem")).toHaveCount(0)
+  await page.getByRole("button", { name: /^Redo \(/ }).click()
+  await expect(graphicsList.getByRole("listitem")).toHaveCount(5)
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+
+  // The form opens with the recipe again after a reload.
+  await page.reload()
+  await page
+    .getByRole("tablist", { name: "Editor tools" })
+    .getByRole("tab", { name: "Templates" })
+    .click()
+  const again = page.getByRole("form", { name: "Recipe" })
+  await expect(again.getByRole("textbox", { name: "Dish" })).toHaveValue(
+    "Garlic noodles"
+  )
+  await expect(again.getByRole("textbox", { name: "Steps" })).toHaveValue(
+    "Boil the noodles\nToss with garlic butter"
+  )
+  expect(consoleProblems).toEqual([])
+})

@@ -3,6 +3,7 @@ import { z } from "zod"
 import { clipEditSchema } from "./edit"
 import { graphicItemSchema, graphicLimits } from "./graphics"
 import { lensSchema } from "./lens"
+import { recipeSchema } from "./recipe"
 import { textItemSchema, textLimits, textStyleSchema } from "./text"
 import { voiceSchema } from "./voice"
 
@@ -94,6 +95,8 @@ export const presentationSchema = z.object({
   voice: voiceSchema.nullable().default(null),
   /** The template last applied (features/footage/lib/templates.ts), if any. */
   template: z.string().max(40).nullable().default(null),
+  /** The recipe the recipe template was built from (M12); null = none. */
+  recipe: recipeSchema.nullable().default(null),
   /** Depth of field and progressive blur. */
   lens: lensSchema.default({
     depthOfField: { enabled: false, fStop: 2.8, maxBlur: 0.6 },

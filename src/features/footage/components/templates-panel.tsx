@@ -2,28 +2,35 @@
 
 import { CheckIcon, SparklesIcon } from "lucide-react"
 
+import type { Recipe } from "@/shared/motion"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
 
 import { templates, type TemplateId } from "../lib/templates"
 import { PanelHeading } from "./editor-panels"
+import { RecipeForm } from "./recipe-form"
 
 /**
  * Templates (§7.16): a finished style in one click, or an "AI first cut"
  * that writes text and picks graphics in that style. Both are one undo step.
+ * Below them, templates by genre (M12) build a video from what you type.
  */
 export function TemplatesPanel({
   activeTemplate,
   hasMoments,
   isDirecting,
+  recipe,
   onApply,
   onFirstCut,
+  onBuildRecipe,
 }: {
   activeTemplate: string | null
   hasMoments: boolean
   isDirecting: boolean
+  recipe: Recipe | null
   onApply: (id: TemplateId) => void
   onFirstCut: (id: TemplateId) => void
+  onBuildRecipe: (recipe: Recipe) => string | null
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -91,6 +98,23 @@ export function TemplatesPanel({
           )
         })}
       </ul>
+      <section className="flex flex-col gap-3" aria-labelledby="genre-heading">
+        <div className="flex flex-col gap-1">
+          <h3 id="genre-heading" className="text-sm font-medium">
+            By genre
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Fill in what the video is about; the template lays it out. No key
+            moments needed.
+          </p>
+        </div>
+        <RecipeForm
+          recipe={recipe}
+          active={activeTemplate === "recipe"}
+          disabled={isDirecting}
+          onBuild={onBuildRecipe}
+        />
+      </section>
     </div>
   )
 }

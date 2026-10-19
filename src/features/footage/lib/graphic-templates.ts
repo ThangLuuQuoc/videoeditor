@@ -114,8 +114,18 @@ export function newGraphic(
         ? "Your big idea"
         : kind === "split"
           ? "Say what it does"
+          : kind === "list"
+            ? "Ingredients"
+            : kind === "step"
+              ? "Whisk the eggs"
+              : "",
+    secondary: isLayoutGraphic(kind)
+      ? "One line that backs it up"
+      : kind === "list"
+        ? "2 eggs\n200 g flour\n1 tbsp butter"
+        : kind === "step"
+          ? "Step 1"
           : "",
-    secondary: isLayoutGraphic(kind) ? "One line that backs it up" : "",
     side: kind === "split" ? "left" : "auto",
     track: 0,
     at: null,

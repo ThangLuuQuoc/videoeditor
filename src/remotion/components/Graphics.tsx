@@ -947,6 +947,169 @@ function StageGraphic({
         </div>
       )
     }
+    case "list": {
+      const lines = item.secondary
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+      const ink = inkOn(item.backgroundColor, "#15171c")
+      // Lines tick in one after another over the first ~60% of its time.
+      const gap =
+        lines.length > 0
+          ? Math.min(8, Math.max(3, Math.floor((frames * 0.6) / lines.length)))
+          : 0
+      const mark = 3 * su * item.secondarySize
+      return (
+        <div
+          {...id}
+          style={spot(placed, {
+            position: "absolute",
+            left: "6%",
+            top: "10%",
+            maxWidth: 0.6 * width,
+            padding: `${2.4 * su}px ${3 * su}px`,
+            borderRadius: 2 * su,
+            background: item.backgroundColor ?? "rgb(255 255 255 / 0.95)",
+            boxShadow: `0 ${1.2 * su}px ${4 * su}px rgb(0 0 0 / 0.3)`,
+            color: ink,
+            ...rise(0, 14),
+          })}
+        >
+          <div
+            style={{
+              fontFamily: fonts.heading,
+              fontWeight: fonts.headingWeight,
+              fontSize: 4.2 * su * item.textSize,
+              lineHeight: 1.1,
+              color: item.textColor ?? ink,
+              marginBottom: 1.4 * su,
+            }}
+          >
+            {item.text || "Ingredients"}
+          </div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: 0.9 * su }}
+          >
+            {lines.map((line, i) => {
+              const t = easeOutCubic((frame - 8 - i * gap) / 10)
+              const tick = easeOutBack((frame - 12 - i * gap) / 10)
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.2 * su,
+                    opacity: t,
+                    transform: `translateX(${((1 - t) * 2 * su).toFixed(2)}px)`,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: mark,
+                      height: mark,
+                      flexShrink: 0,
+                      borderRadius: 999,
+                      background: colors.accent,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transform: `scale(${Math.max(0, tick).toFixed(3)})`,
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="70%"
+                      height="70%"
+                      fill="none"
+                      stroke={colors.onAccent}
+                      strokeWidth={3.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path
+                        d="M5 12.5l4.5 4.5L19 7.5"
+                        pathLength={1}
+                        strokeDasharray={1}
+                        strokeDashoffset={1 - clamp01(tick)}
+                      />
+                    </svg>
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: fonts.body,
+                      fontSize: 2.8 * su * item.secondarySize,
+                      lineHeight: 1.25,
+                      color: item.secondaryColor ?? ink,
+                    }}
+                  >
+                    {line}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )
+    }
+    case "step": {
+      const ink = inkOn(item.backgroundColor, "#15171c")
+      const badge = easeOutBack(frame / 10)
+      return (
+        <div
+          {...id}
+          style={spot(placed, {
+            position: "absolute",
+            left: "50%",
+            top: "7%",
+            translate: placed ? undefined : "-50% 0",
+            width: "max-content",
+            maxWidth: 0.86 * width,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.2 * su,
+            textAlign: "center",
+            opacity: shown,
+          })}
+        >
+          {item.secondary && (
+            <span
+              style={{
+                padding: `${0.8 * su * item.secondarySize}px ${2.2 * su * item.secondarySize}px`,
+                borderRadius: 999,
+                background: colors.accent,
+                color: item.secondaryColor ?? colors.onAccent,
+                fontFamily: fonts.body,
+                fontWeight: 700,
+                fontSize: 2.4 * su * item.secondarySize,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                transform: `scale(${Math.max(0, badge).toFixed(3)})`,
+              }}
+            >
+              {item.secondary}
+            </span>
+          )}
+          <div
+            style={{
+              padding: `${1.6 * su}px ${2.6 * su}px`,
+              borderRadius: 1.6 * su,
+              background: item.backgroundColor ?? "rgb(255 255 255 / 0.95)",
+              boxShadow: `0 ${su}px ${3.5 * su}px rgb(0 0 0 / 0.3)`,
+              fontFamily: fonts.heading,
+              fontWeight: fonts.headingWeight,
+              fontSize: 3.6 * su * item.textSize,
+              lineHeight: 1.15,
+              color: item.textColor ?? ink,
+              ...rise(5, 14),
+            }}
+          >
+            {item.text || "Whisk the eggs"}
+          </div>
+        </div>
+      )
+    }
     case "logo": {
       const t = easeOutCubic(frame / 22)
       return (

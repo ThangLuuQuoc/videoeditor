@@ -28,6 +28,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | **V3 M8:** template + AI first cut | ✅ | 4 template; cấp clip (một bước hoàn tác) và cấp video (mọi clip + chuyển cảnh, "Undo template"); unit + DB test (gồm nhánh AI với model giả lập); `templates.spec.ts` 2/2 |
 | **V3 M9:** giọng đọc + phụ đề | ✅ (provider thật chưa chọn) | script (tự viết hoặc AI viết) → TTS từng câu → phụ đề theo câu, tô từ đang đọc → preview phát tiếng → export trộn tiếng. `voiceover.test.ts` (DB + S3 + render: im lặng trước câu đầu, có tiếng trong câu) và `voice.spec.ts` (giao diện → MP4 có audio) đều đạt với `VOICE_PROVIDER=test` |
 | **V3 M7:** chạy cả hệ thống bằng Docker local (Q3) | ✅ (19/10) | `deploy/local/compose.yml`; đăng nhập magic link (in ra log) bằng tay; Playwright `E2E_NO_SERVER=1` với stack: **33/33 đạt** (auth, footage, videos, templates, voice, exports; render chạy trong container worker) |
+| **V3 M12 bước 1:** template nấu ăn | ✅ (19/10), chưa có ảnh | tab Templates → "By genre" → form công thức → video 9:16: slide tên món, thẻ nguyên liệu (graphic `list`), từng bước (graphic `step`), end card; một bước hoàn tác; công thức lưu trong `presentation.recipe`. Unit `recipe-template.test.ts` + Playwright `templates.spec.ts`; render HyperFrames thật 9:16 (`spike-phase0/e2e/render-recipe.mts`, 12 giây video trong 79 giây): `e2e/results/recipe-sheet.png` |
 
 ## 3. Thay đổi trong mã nguồn (so với ReelPilot `09b152b`)
 
@@ -48,6 +49,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | `next.config.ts` | `serverExternalPackages` cho `@ffprobe-installer/ffprobe`, `ffmpeg-static` (app đo thời lượng audio) |
 | `Dockerfile`, `.dockerignore`, `deploy/build.env` | **một image cho cả app và worker**: user `node`, Chrome của HyperFrames, font Noto (tiếng Việt), tắt telemetry; `next build` dùng placeholder trong `deploy/build.env` |
 | `deploy/local/compose.yml`, `deploy/local/app.env` | stack local (M7): Postgres, SeaweedFS, migrate, tạo bucket, app (cổng 3300), worker (giới hạn 4 CPU / 6 GB) |
+| `shared/motion/recipe.ts`, `footage/lib/recipe-template.ts`, `footage/components/recipe-form.tsx` | template nấu ăn (M12): schema công thức, `applyRecipe` (thuần), form; graphic mới `list` và `step` trong `shared/motion/graphics.ts` + `remotion/components/Graphics.tsx` |
 | `shared/email/send-email.ts`, `env-schema.ts` | `EMAIL_TRANSPORT=console`: in email (magic link) ra log thay vì gửi qua Resend |
 | `src/remotion/hyperframes/stage-player.tsx`, `player-clock.ts` (mới) | player của editor thay `@remotion/player`: đồng hồ `requestAnimationFrame` (có phát ngược), co giãn vừa khung, API `play/pause/seekTo/isPlaying/getCurrentFrame` + sự kiện `frameupdate/seeked/play/pause/ended` |
 | `next.config.ts` | `turbopack.resolveAlias`: `remotion` → shim (app không còn runtime Remotion) |

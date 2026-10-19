@@ -58,6 +58,7 @@ import {
   isLayoutGraphic,
   isScreenGraphic,
   type GraphicItem,
+  type Recipe,
   type VoiceLanguage,
 } from "@/shared/motion"
 import type { StageFonts } from "@/remotion/components/TextLayer"
@@ -106,6 +107,7 @@ import {
   type TemplateId,
 } from "../lib/templates"
 import { parseStoredInsight } from "../lib/insight"
+import { applyRecipe } from "../lib/recipe-template"
 import { parseStoredShot } from "../lib/motion"
 import { stageFontsFor } from "../lib/stage-fonts"
 import { parseStoredRecording } from "../lib/recording"
@@ -1286,6 +1288,33 @@ export function FootageEditor({
     })
   }
 
+  /** The recipe template (M12): one undo step; a problem in words, or null. */
+  function buildRecipe(recipe: Recipe) {
+    const result = applyRecipe(recipe, {
+      current: history.present,
+      durationMs,
+      brandColors,
+    })
+    const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`
+    if (!result.ok) {
+      return result.reason === "too-short"
+        ? `This clip runs ${seconds(result.haveMs)}; ${recipe.steps.length} ${
+            recipe.steps.length === 1 ? "step needs" : "steps need"
+          } at least ${seconds(result.needMs)}. Remove a step or use a longer clip.`
+        : `A clip holds up to ${result.limit} graphics: remove a few first.`
+    }
+    change(result.motion, `template:recipe:${Math.random()}`)
+    setAspect("9:16")
+    stop()
+    play()
+    toast.add({
+      type: "success",
+      title: "Recipe video built",
+      description: `${recipe.dish}. ${undoKey} undoes it.`,
+    })
+    return null
+  }
+
   function firstCut(id: TemplateId) {
     const template = templateById(id)
     if (!template) return
@@ -1768,8 +1797,10 @@ export function FootageEditor({
                   activeTemplate={presentation.template}
                   hasMoments={markers.length > 0}
                   isDirecting={isDirecting}
+                  recipe={presentation.recipe}
                   onApply={applyTemplateById}
                   onFirstCut={firstCut}
+                  onBuildRecipe={buildRecipe}
                 />
               </TabsContent>
               <TabsContent value="ai">

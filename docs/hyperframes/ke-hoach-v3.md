@@ -16,7 +16,7 @@
 | M8 Template & AI first cut | ✅ cấp clip + cấp video, có hoàn tác; test unit/DB/Playwright |
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
 | M10, M11 | chưa bắt đầu |
-| M12 Template theo thể loại | 🔧 bắt đầu 19/10 với **nấu ăn**; timeline, data, làm đẹp chưa làm |
+| M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); ảnh (1b), timeline, data, làm đẹp chưa làm |
 
 Chi tiết từng hạng mục: `README.md` mục 2.
 
@@ -80,6 +80,7 @@ Founder quay app (hoặc upload video) → AI phân tích các khoảnh khắc c
 | Q4 | **Bỏ hẳn Remotion** (`RENDER_ENGINE=remotion`, `remotion`, `@remotion/bundler`, `@remotion/renderer`) | Giữ làm phương án dự phòng đến hết M7 (2 tuần production không có sự cố render), rồi gỡ và đổi tên `src/remotion` → `src/stage` | M6 (phần dọn dẹp) |
 | Q5 | **Giọng đọc (TTS)** — build plan §10 ghi "no voice planned" | Mở lại cho M9 qua adapter. Tiếng Việt: thử 2–3 nhà cung cấp cloud và Kokoro chạy local (HyperFrames hỗ trợ sẵn); chọn theo chất lượng nghe thử + chi phí | M9 |
 | Q6 | Tên sản phẩm, domain, điều khoản (đang là `TODO(owner)` trong build plan) | Chốt trước khi mở cho người dùng ngoài | M7 |
+| Q7 | **Mô hình tạo ảnh** (ảnh nguyên liệu/bước còn thiếu trong template thể loại) | Qua adapter như giọng đọc: `generateImage` của AI SDK, `IMAGE_PROVIDER` = openai \| google \| test. Cần chốt nhà cung cấp, ngân sách/ngày, và có gắn nhãn "ảnh minh họa" không | M12 bước 1b |
 
 ---
 
@@ -170,7 +171,7 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 
 **Thiếu chung, ảnh hưởng mọi thể loại:** clip ảnh tĩnh (hiện clip phải là video), nhạc nền + giảm âm lượng khi có giọng đọc (M9 còn mở), chế độ **phủ kín khung** (cover) cho video dọc lệch tỉ lệ.
 
-**Bước 1 — Nấu ăn (đang làm):**
+**Bước 1 — Nấu ăn (✅ 19/10, chưa có ảnh):**
 - `shared/motion/recipe.ts`: `recipeSchema` (tên món, dòng phụ như "25 phút · 2 người", nguyên liệu ≤ 12 dòng, bước 1–10, ngôn ngữ vi/en) và nhãn theo ngôn ngữ ("Nguyên liệu", "Bước 2/5", "Lưu công thức").
 - `features/footage/lib/genres/recipe.ts`: `applyRecipe` chia thời lượng video: slide mở đầu → thẻ nguyên liệu → các bước chia đều → end card 3 giây; báo lỗi khi clip quá ngắn so với số bước.
 - Tab Templates có mục "By genre" → form công thức → "Build recipe video".
@@ -233,4 +234,4 @@ Thêm theo milestone:
 3. M6: lấy 2–3 video quay màn hình thật (3–10 phút) để đo và kiểm tra (**cần chủ dự án gửi video**).
 4. ~~M6: thêm khung 4:5.~~ ✅
 5. ~~Thiết kế dữ liệu template cho M8 (zod trong `shared/motion`) và lấy ý kiến chủ dự án về 4 template mẫu.~~ ✅ (M8 xong)
-6. **M12 bước 1: template nấu ăn** (đang làm), rồi timeline → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).
+6. ~~M12 bước 1: template nấu ăn~~ ✅. Tiếp: **bước 1b ảnh cho công thức** (cần chốt Q7), áp công thức cho cả video, bước làm lời đọc; rồi timeline → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).
