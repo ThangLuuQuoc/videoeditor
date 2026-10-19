@@ -20,7 +20,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Project nặng graphics: magnifier (`OffthreadVideo` thứ 2), logo + end card (`Img`), callout, lower-third, split, stat, chuyển cảnh zoom | ✅ **khớp Remotion** | 407/407 frame ≥ 34,2 dB, SSIM ≥ 0,990; HyperFrames 53s so với Remotion 81s; `spike-phase0/e2e/render-graphics.mts`, `results/compare-graphics.png` |
 | Test hồi quy seek trong repo: `src/shared/render/__tests__/hyperframes-seek.test.ts` | ✅ đạt (24s) | footage mã vạch + server có Range; **đã kiểm chứng test fail** khi cố ý làm hỏng shim. Chạy khi có `STORAGE_TESTS` (CI) hoặc `RENDER_TESTS=1` |
 | CI (`.github/workflows/ci.yml`) | ✅ đã thêm bước | cache `~/.cache/puppeteer` + `npx hyperframes browser ensure`, `HYPERFRAMES_NO_TELEMETRY=1`. Repo `videoeditor` **chưa có lượt chạy Actions nào** (cần bật Actions trong Settings) |
-| Playwright `tests/e2e/exports.spec.ts` (qua giao diện, cần build app + worker + DB + S3) | ⏳ **chưa chạy**: Docker Desktop trên máy dev bị treo ngày 19/10 | bước tiếp theo #1 |
+| Playwright `tests/e2e/exports.spec.ts` (qua giao diện: build app + worker + Postgres + SeaweedFS) | ✅ **3/3 đạt** (4,1 phút, 19/10) | export clip + tải về + chia sẻ/tắt chia sẻ; báo export cũ sau khi sửa; export + chia sẻ cả video. Engine = HyperFrames (mặc định, không đặt `RENDER_ENGINE`) |
 | Thay `@remotion/player` trong editor bằng `<hyperframes-player>` | ⏳ chưa làm | sau khi export ổn |
 | Viết lại kế hoạch thành v3 theo repo thật | ⏳ chưa làm | `ke-hoach-trien-khai-v2.md` một phần đã lỗi thời |
 
@@ -36,6 +36,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | `src/shared/render/index.ts` | chọn tiến trình theo `env.RENDER_ENGINE` |
 | `src/shared/render/__tests__/hyperframes-seek.test.ts` (mới) | test hồi quy: render footage mã vạch qua HyperFrames, giải mã từng frame, so với `outputLayout` |
 | `.github/workflows/ci.yml` | cache + `npx hyperframes browser ensure`, tắt telemetry |
+| `playwright.config.ts` | cổng test đọc từ `E2E_PORT` (mặc định 3100 như CI) |
 | `src/shared/config/env-schema.ts`, `.env.example` | thêm `RENDER_ENGINE` (`hyperframes` mặc định) |
 | `package.json` | thêm `hyperframes@0.8.164`, `esbuild@0.28.2` (ghim chính xác) |
 
@@ -79,6 +80,15 @@ npx vitest run src/features/exports/__tests__/render-export.test.ts --hookTimeou
 ```
 
 Đã chạy trên máy dev ngày 16/10/2026: **2/2 đạt**. Lần đầu có thể timeout ở `beforeAll` (20s mặc định) vì bước transform chậm, nên phải tăng `--hookTimeout`.
+Playwright export qua giao diện (dùng chung Postgres + SeaweedFS ở trên):
+
+```bash
+set -a; source docs/hyperframes/spike-phase0/e2e/local.env; set +a   # E2E_PORT=3200
+npm run storage:cors -- --create-bucket                              # thêm CORS cho localhost:3200
+npx playwright install chromium
+npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự build app, chạy server + worker
+```
+
 `npx vitest run` (toàn bộ) **không nạp env** thì có 2 file lỗi sẵn từ trước (`describe-moment`, `graphics`: thiếu biến môi trường). Nạp `local.env` như trên thì hết.
 
 ## 5. Vấn đề đã biết / chỗ dễ kẹt
@@ -92,7 +102,8 @@ npx vitest run src/features/exports/__tests__/render-export.test.ts --hookTimeou
 6. **Windows**: `core.autocrlf=true` làm `prettier --check` báo 305 file. Đây là lỗi kết thúc dòng, không phải lỗi code; chạy prettier trên Linux/CI hoặc đặt `core.autocrlf=input`.
 7. **Mạng máy dev cũ**: npm registry đi qua `http://`, `NODE_TLS_REJECT_UNAUTHORIZED=0`. `npm ci` có lúc lỗi mạng giữa chừng; chạy lại với `--fetch-retries=6`.
 8. Chrome cho HyperFrames nằm ở cache của Puppeteer (`~/.cache/puppeteer`) và được tải bằng `npx hyperframes browser ensure` (CI đã có bước này). **Repo chưa có Dockerfile cho worker** (build plan để deploy ở mục Later). Khi viết, image cần: `npx hyperframes browser ensure` lúc build, thư viện hệ thống cho Chrome (`npx playwright install-deps chromium` hoặc tương đương), `HYPERFRAMES_NO_TELEMETRY=1`, `HYPERFRAMES_NO_UPDATE_CHECK=1`, và nguồn media có HTTP Range.
-9. Docker Desktop có thể treo (`docker info` không trả lời). Khởi động lại Docker Desktop sẽ khởi động lại **mọi** container trên máy; kiểm tra trước khi làm.
+9. Docker Desktop có thể treo (`docker info` không trả lời) và nút restart trong giao diện cũng có thể treo theo. Cách đã dùng: dừng hẳn các tiến trình `Docker Desktop`/`com.docker.backend` rồi mở lại. Việc này khởi động lại **mọi** container trên máy.
+10. **Cổng 3100 có thể bị dự án khác chiếm** (trên máy dev: `auth-platform-auth-server-1`). Playwright đặt `reuseExistingServer` khi không chạy CI nên sẽ dùng nhầm server đó, và mọi trang trả "404 Not Found" trơn. Dùng `E2E_PORT` (đã thêm vào `playwright.config.ts`); `local.env` đặt `E2E_PORT=3200` cùng `BETTER_AUTH_URL`/`NEXT_PUBLIC_APP_URL` cổng 3200, rồi chạy lại `npm run storage:cors` để thêm CORS cho origin mới.
 
 ## 6. Quyết định còn mở (cần chủ dự án)
 
@@ -102,7 +113,7 @@ npx vitest run src/features/exports/__tests__/render-export.test.ts --hookTimeou
 
 ## 7. Bước tiếp theo (theo thứ tự)
 
-1. Playwright `tests/e2e/exports.spec.ts`: dựng Postgres + SeaweedFS (mục 4), nạp `local.env`, `npx playwright install chromium`, rồi `npx playwright test tests/e2e/exports.spec.ts --project=desktop` (tự build app và chạy worker).
+1. Chạy toàn bộ Playwright (`npx playwright test`, cả `desktop` và `mobile`) để chắc phần khác của app không bị ảnh hưởng.
 2. Bật GitHub Actions cho `ThangLuuQuoc/videoeditor` và xem CI chạy xanh (bước browser ensure của HyperFrames là bước mới).
 3. Thử footage quay màn hình thật (dài, GOP lớn, VFR) và đo thời gian render so với Remotion.
 4. Thay `@remotion/player` trong editor bằng `<hyperframes-player>` (preview = render): `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx`.
