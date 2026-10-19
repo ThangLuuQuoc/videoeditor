@@ -7,3 +7,10 @@ export { formatDuration, formatTimecode } from "./lib/format"
 export { stageFontsFor } from "./lib/stage-fonts"
 export { FootageUploader } from "./components/footage-uploader"
 export { ScreenRecorder } from "./components/screen-recorder"
+export {
+  templateById,
+  templateIds,
+  templates,
+  type Template,
+  type TemplateId,
+} from "./lib/templates"

@@ -2,6 +2,7 @@ import {
   outputDuration,
   toSource,
   updateRange,
+  type ClipEdit,
   type GraphicItem,
   type Presentation,
   type Shot,
@@ -36,6 +37,30 @@ const textSpots = {
 } as const
 
 /**
+ * Still parts (the analysis's idle ranges, 150ms in from each end): kept,
+ * sped up 4×, or cut. Shared by the AI's plan and templates.
+ */
+export function applyStillParts(
+  edit: ClipEdit,
+  durationMs: number,
+  idle: { startMs: number; endMs: number }[],
+  mode: "keep" | "speed" | "cut"
+): ClipEdit {
+  if (mode === "keep") return edit
+  let next = edit
+  for (const range of idle) {
+    next = updateRange(
+      next,
+      durationMs,
+      range.startMs + 150,
+      range.endMs - 150,
+      mode === "speed" ? { speed: 4 } : { removed: true }
+    )
+  }
+  return next
+}
+
+/**
  * Turns the AI's plan into an edit with the deterministic engines (camera
  * rules, cuts, text, graphics, lens), changing only what `scope` allows.
  * Text and graphics in scope are replaced (undo brings the old ones back).
@@ -65,17 +90,15 @@ export function applyPlan(
   }
 
   if (scope.cuts && plan.stillParts !== "keep") {
-    let edit = presentation.edit
-    for (const range of input.idle) {
-      edit = updateRange(
-        edit,
+    presentation = {
+      ...presentation,
+      edit: applyStillParts(
+        presentation.edit,
         durationMs,
-        range.startMs + 150,
-        range.endMs - 150,
-        plan.stillParts === "speed" ? { speed: 4 } : { removed: true }
-      )
+        input.idle,
+        plan.stillParts
+      ),
     }
-    presentation = { ...presentation, edit }
   }
 
   const byId = new Map(moments.map((m) => [m.id, m]))

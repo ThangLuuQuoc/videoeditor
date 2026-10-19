@@ -89,6 +89,8 @@ export const presentationSchema = z.object({
   textStyle: textStyleSchema.default({ animation: "word-rise" }),
   texts: z.array(textItemSchema).max(textLimits.items).default([]),
   graphics: z.array(graphicItemSchema).max(graphicLimits.items).default([]),
+  /** The template last applied (features/footage/lib/templates.ts), if any. */
+  template: z.string().max(40).nullable().default(null),
   /** Depth of field and progressive blur. */
   lens: lensSchema.default({
     depthOfField: { enabled: false, fStop: 2.8, maxBlur: 0.6 },

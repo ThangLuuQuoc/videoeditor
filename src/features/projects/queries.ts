@@ -14,6 +14,8 @@ import {
 } from "@/shared/motion"
 import { signedFileUrl } from "@/shared/storage"
 
+import { parseTemplateUndo } from "./lib/template-undo"
+
 const hour = 60 * 60
 
 const clipFields = {
@@ -31,6 +33,12 @@ const clipFields = {
     orderBy: { atMs: "asc" as const },
     select: { atMs: true, shot: true },
   },
+}
+
+/** The video's last template (and whether the AI wrote its text). */
+function templateSummary(value: unknown) {
+  const undo = parseTemplateUndo(value)
+  return undo ? { templateId: undo.templateId, withAi: undo.withAi } : null
 }
 
 const storedTransition = (value: unknown): Transition =>
@@ -119,6 +127,7 @@ export async function getProject(workspaceId: string, projectId: string) {
       name: true,
       version: true,
       brandKitId: true,
+      templateUndo: true,
       clips: {
         orderBy: { position: "asc" },
         select: { id: true, transition: true, footage: { select: clipFields } },
@@ -167,6 +176,8 @@ export async function getProject(workspaceId: string, projectId: string) {
     id: project.id,
     name: project.name,
     version: project.version,
+    /** The template every clip last got, while it can still be undone. */
+    template: templateSummary(project.templateUndo),
     clips,
     kit: {
       id: kit.id,

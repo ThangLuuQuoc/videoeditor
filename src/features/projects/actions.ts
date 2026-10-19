@@ -7,14 +7,17 @@ import type { z } from "zod"
 import { requireWorkspaceAccess } from "@/features/workspaces"
 import { AppError } from "@/shared/lib/errors"
 import { err, ok, toResultError, type Result } from "@/shared/lib/result"
+import type { Transition } from "@/shared/motion"
 import { deleteFolder } from "@/shared/storage"
 
 import {
   appendClipSchema,
+  applyVideoTemplateSchema,
   createProjectSchema,
   projectIdSchema,
   renameProjectSchema,
   saveProjectClipsSchema,
+  undoVideoTemplateSchema,
 } from "./schema"
 import * as service from "./service"
 
@@ -152,6 +155,51 @@ export async function projectClipStatuses(
       parsed.data.projectId
     )
     return ok({ statuses })
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/**
+ * Applies a template to every clip of a video (and, with AI, writes its
+ * text and picks its graphics) as one change that can be undone. Returns
+ * the new version and the joins' transitions, in clip order.
+ */
+export async function applyVideoTemplate(input: unknown): Promise<
+  Result<{
+    version: number
+    transitions: Transition[]
+    applied: number
+    skipped: number
+  }>
+> {
+  try {
+    const parsed = applyVideoTemplateSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Pick a template.")
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const result = await service.applyTemplateToVideo(workspace.id, parsed.data)
+    revalidatePath(`/videos/${parsed.data.projectId}`)
+    refreshProjects()
+    return ok(result)
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/** Puts the video back as it was before its last template. */
+export async function undoVideoTemplate(
+  input: unknown
+): Promise<Result<{ version: number; transitions: Transition[] }>> {
+  try {
+    const parsed = undoVideoTemplateSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the video.")
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const result = await service.undoVideoTemplate(workspace.id, parsed.data)
+    revalidatePath(`/videos/${parsed.data.projectId}`)
+    refreshProjects()
+    return ok(result)
   } catch (error) {
     unstable_rethrow(error)
     return err(toResultError(error))

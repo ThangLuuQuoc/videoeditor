@@ -5,6 +5,7 @@ import {
   ArrowLeftIcon,
   FlagIcon,
   FilmIcon,
+  LayoutTemplateIcon,
   ListIcon,
   PaletteIcon,
   MaximizeIcon,
@@ -94,6 +95,12 @@ import {
 } from "../lib/graphic-templates"
 import { commit, createHistory, redo, undo, type History } from "../lib/history"
 import { applyLook, resetLook } from "../lib/looks"
+import {
+  applyTemplate,
+  templateById,
+  type Template,
+  type TemplateId,
+} from "../lib/templates"
 import { parseStoredInsight } from "../lib/insight"
 import { parseStoredShot } from "../lib/motion"
 import { stageFontsFor } from "../lib/stage-fonts"
@@ -137,6 +144,7 @@ import {
   textSwatches,
 } from "./editor-panels"
 import { MomentsPanel } from "./moments-panel"
+import { TemplatesPanel } from "./templates-panel"
 import { MotionStage, stageAspects, type StageAspect } from "./motion-stage"
 import { stageFps } from "@/remotion/compositions/FootageStage"
 import { err, type Result } from "@/shared/lib/result"
@@ -157,6 +165,7 @@ function historyReducer(history: History<Motion>, action: HistoryAction) {
 }
 
 type Tool =
+  | "templates"
   | "effects"
   | "shot"
   | "cuts"
@@ -170,6 +179,7 @@ const tools: { id: Tool; label: string; icon: React.ComponentType }[] = [
   // In the order a first edit usually goes: let the AI (or a look) do the
   // heavy lifting, check the moments, then refine camera, cuts, text,
   // graphics, lens and style.
+  { id: "templates", label: "Templates", icon: LayoutTemplateIcon },
   { id: "ai", label: "AI", icon: SparklesIcon },
   { id: "effects", label: "Looks", icon: WandSparklesIcon },
   { id: "moments", label: "Moments", icon: ListIcon },
@@ -1160,8 +1170,9 @@ export function FootageEditor({
     take: number
   } | null>(null)
 
-  function applyLookById(lookId: string, take: number) {
-    const moments = markers.map((marker) => ({
+  /** The moments with where the camera should aim (looks, templates). */
+  function lookMoments() {
+    return markers.map((marker) => ({
       id: marker.id,
       atMs: marker.atMs,
       aim: aimAt({
@@ -1171,6 +1182,50 @@ export function FootageEditor({
         atMs: marker.atMs,
       }),
     }))
+  }
+
+  /** Words a template's intro slide and end card start with. */
+  function templateCopy() {
+    return { title: kitName, cta: "Try it free" }
+  }
+
+  function applyTemplateById(id: TemplateId) {
+    const template = templateById(id)
+    if (!template) return
+    // One undo step per application (never merged).
+    change(
+      applyTemplate(template, {
+        moments: lookMoments(),
+        current: history.present,
+        durationMs,
+        idle: analysis?.idle ?? [],
+        brandColors,
+        copy: templateCopy(),
+      }),
+      `template:${id}:${Math.random()}`
+    )
+    setAspect(template.shape)
+    stop()
+    play()
+    toast.add({
+      type: "success",
+      title: "Template applied",
+      description: `${template.title}. ${undoKey} undoes it.`,
+    })
+  }
+
+  function firstCut(id: TemplateId) {
+    const template = templateById(id)
+    if (!template) return
+    direct(
+      template.instruction,
+      { camera: true, cuts: true, text: true, graphics: true, lens: true },
+      template
+    )
+  }
+
+  function applyLookById(lookId: string, take: number) {
+    const moments = lookMoments()
     // Each look or take is its own undo step (never merged).
     change(
       applyLook(lookId, moments, history.present, { take }),
@@ -1187,7 +1242,7 @@ export function FootageEditor({
     summary: string
   } | null>(null)
 
-  function direct(instruction: string, scope: EditScope) {
+  function direct(instruction: string, scope: EditScope, template?: Template) {
     startDirect(async () => {
       const result = await directFootageEdit({
         footageId: clip.id,
@@ -1213,12 +1268,27 @@ export function FootageEditor({
         idle: analysis?.idle ?? [],
         scope,
       })
+      // AI first cut: the template's style over the AI's words and graphics.
+      const styled = template
+        ? applyTemplate(template, {
+            moments: lookMoments(),
+            current: next,
+            durationMs,
+            idle: analysis?.idle ?? [],
+            brandColors,
+            copy: templateCopy(),
+            endCard: !result.data.endCard,
+          })
+        : next
       // One undoable step; saved like any other change.
       change(
-        next,
+        styled,
         `ai:${instruction}:${JSON.stringify(scope)}:${Math.random()}`
       )
-      const summary = planSummary(result.data, scope)
+      if (template) setAspect(template.shape)
+      const summary = template
+        ? `${template.title} · ${planSummary(result.data, scope)}`
+        : planSummary(result.data, scope)
       setLastPlan({ reasoning: result.data.reasoning, summary })
       stop()
       play()
@@ -1593,6 +1663,15 @@ export function FootageEditor({
                   brandColors={brandColors}
                   palette={analysis?.palette ?? null}
                   onChange={changePresentation}
+                />
+              </TabsContent>
+              <TabsContent value="templates">
+                <TemplatesPanel
+                  activeTemplate={presentation.template}
+                  hasMoments={markers.length > 0}
+                  isDirecting={isDirecting}
+                  onApply={applyTemplateById}
+                  onFirstCut={firstCut}
                 />
               </TabsContent>
               <TabsContent value="ai">

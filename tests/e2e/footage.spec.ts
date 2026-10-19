@@ -741,6 +741,7 @@ test("layers: drop items on the timeline, stack them, and move them on the video
   const tools = page.getByRole("tablist", { name: "Editor tools" })
   // Beginner order, opening on one-click looks.
   await expect(tools.getByRole("tab")).toHaveText([
+    "Templates",
     "AI",
     "Looks",
     "Moments",

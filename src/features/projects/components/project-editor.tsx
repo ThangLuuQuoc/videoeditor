@@ -33,6 +33,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import { ConflictDialog } from "@/shared/ui/conflict-dialog"
 import { ExportDialog } from "@/features/exports/client"
+import { templates, type TemplateId } from "@/features/footage/client"
 import {
   Empty,
   EmptyContent,
@@ -54,12 +55,18 @@ import {
 import { toast } from "@/shared/ui/toast"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
-import { appendProjectClip, saveProjectClips } from "../actions"
+import {
+  appendProjectClip,
+  applyVideoTemplate,
+  saveProjectClips,
+  undoVideoTemplate,
+} from "../actions"
 import type { ProjectDetail } from "../queries"
 import { AddClipsDialog, type KitClip } from "./add-clips-dialog"
 import { DeleteProjectButton } from "./delete-project-button"
 import { ProjectPlayer } from "./project-player"
 import { RenameProject } from "./rename-project"
+import { VideoTemplateDialog } from "./video-template-dialog"
 
 /** One clip in the list, as edited here (the key keeps React's order). */
 type Entry = { key: string; footageId: string; transition: Transition }
@@ -115,6 +122,70 @@ export function ProjectEditor({
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const conflicted = useRef(false)
   const pending = useRef(0)
+  const [templateBusy, setTemplateBusy] = useState(false)
+
+  /** Takes a template change's new version and joins, then refreshes. */
+  function afterTemplate(data: { version: number; transitions: Transition[] }) {
+    version.current = data.version
+    setEntries((current) =>
+      current.map((entry, index) => ({
+        ...entry,
+        transition: data.transitions[index] ?? entry.transition,
+      }))
+    )
+    // The clips' edits changed on the server.
+    router.refresh()
+  }
+
+  async function applyTemplate(templateId: TemplateId, withAi: boolean) {
+    // Not over a save in flight (it would make the version stale).
+    if (pending.current > 0 || conflicted.current) return false
+    setTemplateBusy(true)
+    const result = await applyVideoTemplate({
+      projectId: project.id,
+      baseVersion: version.current,
+      templateId,
+      withAi,
+    })
+    setTemplateBusy(false)
+    if (!result.ok) {
+      if (result.error.code === "CONFLICT") {
+        conflicted.current = true
+        setConflict("open")
+      } else {
+        toast.add({ type: "error", title: result.error.message })
+      }
+      return false
+    }
+    afterTemplate(result.data)
+    const title = templates.find((t) => t.id === templateId)?.title
+    const { applied, skipped } = result.data
+    toast.add({
+      type: "success",
+      title: `${title} on ${applied} ${applied === 1 ? "clip" : "clips"}`,
+      description:
+        skipped > 0
+          ? `${skipped} without key moments stayed as they were. Undo template puts everything back.`
+          : "Undo template puts everything back.",
+    })
+    return true
+  }
+
+  async function undoTemplate() {
+    if (pending.current > 0 || conflicted.current) return
+    setTemplateBusy(true)
+    const result = await undoVideoTemplate({
+      projectId: project.id,
+      baseVersion: version.current,
+    })
+    setTemplateBusy(false)
+    if (!result.ok) {
+      toast.add({ type: "error", title: result.error.message })
+      return
+    }
+    afterTemplate(result.data)
+    toast.add({ type: "success", title: "Template undone" })
+  }
 
   // Media for each clip from the server (a clip just added arrives with
   // the refresh that follows its save).
@@ -371,6 +442,12 @@ export function ProjectEditor({
               what="video"
               open={conflict === "open"}
               onOpenChange={(open) => !open && setConflict("dismissed")}
+            />
+            <VideoTemplateDialog
+              current={project.template}
+              busy={templateBusy}
+              onApply={applyTemplate}
+              onUndo={() => void undoTemplate()}
             />
             <DeleteProjectButton projectId={project.id} name={project.name} />
           </>

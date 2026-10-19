@@ -18,3 +18,16 @@ export {
   withPosterUrls,
   type FootageDetail,
 } from "./queries"
+export {
+  templateById,
+  templateIds,
+  templates,
+  templateTransition,
+  type Template,
+  type TemplateId,
+} from "./lib/templates"
+export {
+  templatedMotion,
+  type TemplateBrand,
+  type TemplatedClip,
+} from "./lib/template-cut"

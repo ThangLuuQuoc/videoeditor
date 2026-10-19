@@ -1,0 +1,48 @@
+# ReelPilot's job worker (build plan §4, §17): pg-boss jobs, ffmpeg, and
+# exports rendered by HyperFrames in Chrome Headless Shell.
+#
+#   docker build -f Dockerfile.worker -t reelpilot-worker .
+#   docker run --env-file <worker.env> reelpilot-worker
+#
+# The worker runs with tsx (a dev dependency), so the image installs every
+# dependency. ffmpeg and ffprobe come from npm (ffmpeg-static,
+# @ffprobe-installer); Chrome comes from `hyperframes browser ensure`.
+FROM node:22-bookworm-slim
+
+ENV NODE_ENV=production \
+    # A server render: no telemetry or update checks from the HyperFrames CLI.
+    HYPERFRAMES_NO_TELEMETRY=1 \
+    HYPERFRAMES_NO_UPDATE_CHECK=1 \
+    HYPERFRAMES_SKIP_SKILLS=1 \
+    NEXT_TELEMETRY_DISABLED=1
+
+WORKDIR /app
+
+# Fonts with Vietnamese glyphs (Noto) and emoji, for text the brand kit's
+# font can't draw; certificates for S3 and the AI provider.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates fonts-noto-core fonts-noto-color-emoji \
+ && rm -rf /var/lib/apt/lists/*
+
+# Dependencies first (cached while only source changes). postinstall runs
+# `prisma generate`, which needs the schema and config.
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
+RUN npm ci --include=dev --no-audit --no-fund
+
+# Chrome's system libraries (Playwright keeps the list for Debian), then
+# the Chrome Headless Shell HyperFrames renders with.
+RUN npx playwright install-deps chromium \
+ && rm -rf /var/lib/apt/lists/* \
+ && npx hyperframes browser ensure
+
+COPY . .
+
+# Rendering runs Chrome; run as the unprivileged node user.
+RUN chown -R node:node /app \
+ && mkdir -p /home/node/.cache \
+ && cp -r /root/.cache/puppeteer /home/node/.cache/ \
+ && chown -R node:node /home/node/.cache
+USER node
+
+CMD ["npm", "run", "worker"]

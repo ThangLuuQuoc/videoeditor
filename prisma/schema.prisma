@@ -314,16 +314,20 @@ model FootageMarker {
 // A video: a brand kit's clips in order, each played with its own edit
 // (footage.presentation and markers), joined by transitions.
 model Project {
-  id          String   @id @default(cuid())
-  workspaceId String
+  id           String   @id @default(cuid())
+  workspaceId  String
   // Its clips, fonts, colours and logo come from this kit.
-  brandKitId  String
-  name        String
+  brandKitId   String
+  name         String
   // Bumped by every saved change to the clip list; saves name the version
   // they started from (a stale tab gets a conflict, not an overwrite).
-  version     Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  version      Int      @default(0)
+  // The last template applied to every clip (§7.16) and what it replaced,
+  // so it can be undone as one change; null once undone or never used.
+  // Validated by the projects slice.
+  templateUndo Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   brandKit  BrandKit      @relation(fields: [brandKitId], references: [id], onDelete: Cascade)

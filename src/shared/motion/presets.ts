@@ -197,6 +197,7 @@ export const defaultPresentation: Presentation = {
   textStyle: { animation: "word-rise" },
   texts: [],
   graphics: [],
+  template: null,
   lens: {
     depthOfField: { enabled: false, fStop: 2.8, maxBlur: 1.2 },
     progressiveBlur: {

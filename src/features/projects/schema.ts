@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { templateIds } from "@/features/footage/client"
 import { projectClipSchema, projectLimits } from "@/shared/motion"
 
 const idSchema = z.string().min(1).max(64)
@@ -46,4 +47,18 @@ export const saveProjectClipsSchema = z.object({
 export const appendClipSchema = z.object({
   projectId: idSchema,
   footageId: idSchema,
+})
+
+/** A template for every clip of a video, from the version it was seen at. */
+export const applyVideoTemplateSchema = z.object({
+  projectId: idSchema,
+  baseVersion: z.number().int().min(0),
+  templateId: z.enum(templateIds, "Pick a template."),
+  withAi: z.boolean(),
+})
+
+/** Undo the video's last template, from the version it was seen at. */
+export const undoVideoTemplateSchema = z.object({
+  projectId: idSchema,
+  baseVersion: z.number().int().min(0),
 })
