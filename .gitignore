@@ -44,3 +44,6 @@ next-env.d.ts
 /src/shared/db/generated/
 .neon
 
+
+# Local stack keys (deploy/local/compose.yml)
+deploy/local/secrets.env

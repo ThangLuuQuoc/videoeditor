@@ -8,7 +8,7 @@
 // bundled ffmpeg. No "server-only" here (plain Node child process).
 //
 // Usage: node --import tsx render-process-hyperframes.ts <job.json>
-// job.json: { props, outputPath }. Prints one JSON line per update:
+// job.json: { props, outputPath, workers? }. Prints one JSON line per update:
 // {"progress":0.42} … then {"durationMs":12345}.
 import { spawn } from "node:child_process"
 import { readFileSync } from "node:fs"
@@ -127,7 +127,7 @@ function hyperframesBin() {
   return resolve(dirname(pkgPath), bin)
 }
 
-function renderPage(projectDir: string, outputPath: string) {
+function renderPage(projectDir: string, outputPath: string, workers: string) {
   const env = {
     ...process.env,
     // The bundled binaries, as src/shared/media uses them.
@@ -143,7 +143,7 @@ function renderPage(projectDir: string, outputPath: string) {
   return new Promise<void>((done, fail) => {
     const child = spawn(
       process.execPath,
-      [hyperframesBin(), "render", "--output", outputPath],
+      [hyperframesBin(), "render", "--workers", workers, "--output", outputPath],
       { cwd: projectDir, env, stdio: ["ignore", "pipe", "pipe"] }
     )
     // Our own parent stops us with a signal; take the CLI (and Chrome) down too.
@@ -236,6 +236,8 @@ async function main() {
   const job = JSON.parse(await readFile(process.argv[2] ?? "", "utf8")) as {
     props: RenderProps
     outputPath: string
+    /** Capture workers (RENDER_WORKERS); see env-schema. */
+    workers?: string
   }
   const frames = framesFor(projectDurationMs(job.props))
   const dir = await mkdtemp(join(tmpdir(), "reelpilot-hyperframes-"))
@@ -243,7 +245,7 @@ async function main() {
     await bundleStage(join(dir, "assets"))
     const tracks = await localAudio(voiceTracks(job.props.clips), dir)
     await writeFile(join(dir, "index.html"), page(job.props, frames, tracks))
-    await renderPage(dir, resolve(job.outputPath))
+    await renderPage(dir, resolve(job.outputPath), job.workers ?? "1")
   } finally {
     await rm(dir, { recursive: true, force: true })
   }

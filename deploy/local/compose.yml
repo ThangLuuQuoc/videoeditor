@@ -1,0 +1,105 @@
+# ReelPilot on one machine, for testing (V3 M7, Q3: local Docker only).
+#
+#   docker compose -f deploy/local/compose.yml up -d --build
+#   open http://localhost:3300
+#   docker compose -f deploy/local/compose.yml logs app   # magic links
+#   docker compose -f deploy/local/compose.yml down       # (-v also deletes data)
+#
+# No accounts needed: emails (magic links) print to the app's log, the
+# voice is a test tone, AI features need a real key in secrets.env.
+# Storage links must open both in your browser and inside the containers,
+# so S3 is reached at host.docker.internal (Docker Desktop maps it).
+name: reelpilot
+
+x-app: &app
+  image: reelpilot:local
+  env_file:
+    - path: app.env
+    # Your own keys (e.g. ANTHROPIC_API_KEY); not committed.
+    - path: secrets.env
+      required: false
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reelpilot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "55440:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  s3:
+    image: chrislusf/seaweedfs:4.47
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    volumes:
+      - s3data:/data
+      - ../../.github/s3-ci.json:/etc/seaweedfs/s3.json:ro
+    ports:
+      - "18340:8333"
+    healthcheck:
+      # The S3 port answers (403 without credentials) once it's up.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333 2>&1 | grep -q 403 || wget -q -O /dev/null http://127.0.0.1:8333"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # One-off steps before the app starts.
+  migrate:
+    <<: *app
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  storage-init:
+    <<: *app
+    command: ["npm", "run", "storage:cors", "--", "--create-bucket"]
+    depends_on:
+      s3:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  app:
+    <<: *app
+    command: ["npm", "run", "start", "--", "--port", "3000"]
+    ports:
+      - "3300:3000"
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    <<: *app
+    command: ["npm", "run", "worker"]
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
+    # Renders run Chrome: keep them from taking the whole machine (an
+    # unbounded render brought Docker Desktop down during testing).
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 6g
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  s3data:

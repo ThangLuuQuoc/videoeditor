@@ -11,3 +11,4 @@ src/shared/db/generated
 tsconfig.tsbuildinfo
 # Docs and spikes (with their media) are not needed to run the worker.
 docs/hyperframes/spike-phase0
+deploy/local/secrets.env

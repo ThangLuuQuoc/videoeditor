@@ -25,6 +25,8 @@ const envSchema = z.object({
 
   RESEND_API_KEY: z.string().startsWith("re_"),
   EMAIL_FROM: z.string().min(1),
+  /** "console" prints emails to the server log (a local stack only). */
+  EMAIL_TRANSPORT: z.enum(["resend", "console"]).default("resend"),
 
   // AI text through the Vercel AI SDK registry (src/shared/ai). Add a
   // provider here and in the registry together, with its own key below.
@@ -53,6 +55,16 @@ const envSchema = z.object({
   // needed for individuals and small teams (see remotion.dev/license).
   /** Export renderer: HyperFrames (default) or the original Remotion path. */
   RENDER_ENGINE: z.enum(["hyperframes", "remotion"]).default("hyperframes"),
+  /**
+   * HyperFrames capture workers: a number or "auto". 1 by default: with
+   * "auto" HyperFrames split a render across 5 Chrome workers on a GPU
+   * machine, one hung, and the retried frames came out without footage
+   * (hyperframes-seek test; docs/hyperframes/README.md §5).
+   */
+  RENDER_WORKERS: z
+    .string()
+    .regex(/^(auto|[1-9]\d?)$/)
+    .default("1"),
   REMOTION_LICENSE_KEY: z.string().min(1).optional(),
 
   NEXT_PUBLIC_APP_URL: z.url(),

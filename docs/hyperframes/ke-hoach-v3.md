@@ -11,11 +11,12 @@
 
 | Milestone | Trạng thái |
 | :--- | :--- |
-| M6 Gia cố engine | Khung 4:5 ✅ · test hồi quy seek + bước Chrome trong CI ✅ · `Dockerfile.worker` ✅ (test render + giọng đọc đạt trong container) · footage dài thật ⏳ (cần video quay màn hình thật từ chủ dự án) · lỗi chập chờn: đã ghi lại, chưa có nguyên nhân gốc |
-| M7 Deploy | ⏸ chờ Q1, Q3, Q6 |
+| M6 Gia cố engine | Khung 4:5 ✅ · test hồi quy seek + bước Chrome trong CI ✅ · `Dockerfile` (app + worker) ✅ (test render + giọng đọc đạt trong container) · footage dài thật ⏳ (cần video quay màn hình thật từ chủ dự án) · lỗi chập chờn: đã ghi lại, chưa có nguyên nhân gốc |
+| M7 Deploy | ✅ **đổi phạm vi (19/10):** chỉ Docker local để test (Q3). `deploy/local/compose.yml` (app + worker + Postgres + S3); đăng nhập bằng magic link in ra log; Playwright 33/33 đạt khi chạy với stack (gồm export và giọng đọc) |
 | M8 Template & AI first cut | ✅ cấp clip + cấp video, có hoàn tác; test unit/DB/Playwright |
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
 | M10, M11 | chưa bắt đầu |
+| M12 Template theo thể loại | 🔧 bắt đầu 19/10 với **nấu ăn**; timeline, data, làm đẹp chưa làm |
 
 Chi tiết từng hạng mục: `README.md` mục 2.
 
@@ -26,7 +27,7 @@ Chi tiết từng hạng mục: `README.md` mục 2.
   1. **Chạy được ở production** (M6–M7).
   2. **Có lý do để người dùng quay lại**: template + AI first cut, rồi giọng đọc + phụ đề tiếng Việt (M8–M9).
   3. **Kênh tăng trưởng**: nhiều phiên bản/khung hình, Try-it từ URL (M10–M11).
-- **Cần chủ dự án chốt trước khi đi xa (mục 3):** license mã ReelPilot (repo đang public), thị trường mục tiêu, nơi deploy, thời điểm bỏ hẳn Remotion.
+- **Đã chốt (19/10):** Q1 không cần lo license (repo gốc public, đi kèm video hướng dẫn); Q3 chỉ deploy Docker local. Còn mở: Q2 thị trường, Q4 bỏ hẳn Remotion, Q5 provider giọng đọc, Q6 tên/điều khoản.
 
 ---
 
@@ -73,9 +74,9 @@ Founder quay app (hoặc upload video) → AI phân tích các khoảnh khắc c
 
 | # | Câu hỏi | Đề xuất | Chặn |
 | :-: | :--- | :--- | :--- |
-| Q1 | **License mã ReelPilot.** Repo gốc không có LICENSE nhưng `videoeditor` đang public | Xin phép tác giả và thêm LICENSE; trong lúc chờ, **chuyển repo sang private** | M7 (deploy công khai) |
+| Q1 | **License mã ReelPilot** | ✅ **Đã chốt 19/10:** không cần quan tâm. ReelPilot là repo public đi kèm video hướng dẫn trên YouTube | — |
 | Q2 | **Thị trường đầu tiên** | Việt Nam trước: giọng đọc + phụ đề tiếng Việt là khác biệt rõ nhất; giao diện song ngữ để sau | M9 |
-| Q3 | **Nơi deploy** | Theo build plan: app Hostinger Node.js + worker Docker trên VPS Hostinger. Cloud Run/Lambda (HyperFrames có sẵn) chỉ khi hàng đợi render quá tải | M7 |
+| Q3 | **Nơi deploy** | ✅ **Đã chốt 19/10:** hiện chỉ Docker ở máy local để test. Hostinger/cloud để sau | M7 (local) |
 | Q4 | **Bỏ hẳn Remotion** (`RENDER_ENGINE=remotion`, `remotion`, `@remotion/bundler`, `@remotion/renderer`) | Giữ làm phương án dự phòng đến hết M7 (2 tuần production không có sự cố render), rồi gỡ và đổi tên `src/remotion` → `src/stage` | M6 (phần dọn dẹp) |
 | Q5 | **Giọng đọc (TTS)** — build plan §10 ghi "no voice planned" | Mở lại cho M9 qua adapter. Tiếng Việt: thử 2–3 nhà cung cấp cloud và Kokoro chạy local (HyperFrames hỗ trợ sẵn); chọn theo chất lượng nghe thử + chi phí | M9 |
 | Q6 | Tên sản phẩm, domain, điều khoản (đang là `TODO(owner)` trong build plan) | Chốt trước khi mở cho người dùng ngoài | M7 |
@@ -113,7 +114,11 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 
 **Xong khi:** footage thật render đúng (mã vạch hoặc so pixel với Remotion), container render đạt test, lỗi chập chờn có nguyên nhân và cách sửa (hoặc được giới hạn có chủ đích).
 
-### M7 — Deploy production (≈ 1 tuần) · *chặn bởi Q1, Q3, Q6*
+### M7 — Deploy (Docker local, theo Q3) · *trước đây: production, chặn bởi Q1, Q3, Q6*
+
+**Phạm vi hiện tại (✅ xong 19/10):** một image (`Dockerfile`) cho app và worker; `deploy/local/compose.yml` chạy Postgres, SeaweedFS, migrate, tạo bucket, app (cổng 3300), worker (4 CPU / 6 GB). Không cần tài khoản: `EMAIL_TRANSPORT=console` in magic link ra log, `VOICE_PROVIDER=test`. Kiểm chứng: đăng nhập magic link bằng tay; Playwright (`E2E_NO_SERVER=1`) 33/33 đạt khi chạy với stack, gồm upload, template, giọng đọc, export render trong container worker. Cách chạy: `README.md` mục 4.
+
+**Để sau, khi deploy thật** (phạm vi cũ, giữ để tham khảo):
 - Neon branch `production`, bucket production, CORS; biến môi trường thật (OAuth, Resend, Anthropic).
 - App lên Hostinger Node.js; worker Docker lên VPS; tách worker khỏi máy chạy app.
 - Sentry (`SENTRY_DSN` đã có trong env), sao lưu DB, runbook khi render kẹt (dừng hẳn job, xoá file tạm).
@@ -143,6 +148,43 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 
 ### M11 — Try-it từ URL (§7.1) (≈ 2 tuần)
 - Worker quay thử ~30 giây trang công khai → phân tích → AI first cut với template → trang chia sẻ có watermark; giới hạn tần suất, hết hạn sau 7 ngày, chuyển thành dự án khi đăng ký (đúng §7.1, §11).
+
+### M12 — Template theo thể loại (nấu ăn, timeline, data, làm đẹp) · *thêm 19/10 theo đề xuất của chủ dự án*
+
+**Vì sao:** template M8 chỉ là **bộ style** (look, chữ, chuyển cảnh) cho video quay màn hình. Các dạng video phổ biến như nấu ăn, làm đẹp, data hay kể chuyện theo mốc thời gian cần **template có cấu trúc**: người dùng điền nội dung (món, nguyên liệu, các bước…), app dựng cảnh, đồ họa và phụ đề theo khuôn của thể loại đó, nên họ không phải tự nghĩ bố cục.
+
+**Nguyên tắc:**
+- Template thể loại là **hàm thuần** như `applyTemplate`: nội dung + clip → presentation, **một bước hoàn tác**; đồ họa nó thêm có id `tpl-…` nên áp lại sẽ thay thế, không nhân đôi.
+- Nội dung đã điền được lưu trong presentation (ví dụ `presentation.recipe`), nên mở lại form vẫn còn và chỉnh xong áp lại được.
+- Đồ họa mới là **kiểu graphic thường** (`shared/motion/graphics.ts` + `Graphics.tsx`): chỉnh, kéo, đổi lớp, đổi màu như mọi graphic khác; preview và export dùng chung một component.
+- Không dùng camera "màn hình" cho footage quay thật: template thể loại đặt khung phủ kín (không bo góc, không đổ bóng, không lề) và giữ nguyên shot của người dùng.
+
+**Từng thể loại: dùng lại được gì, cần thêm gì**
+
+| Thể loại | Dùng lại | Cần thêm | Thứ tự |
+| :--- | :--- | :--- | :--- |
+| **Nấu ăn** | `slide` (tên món), `stat`, `split`, tua 2× đoạn chờ, phụ đề giọng đọc | graphic **`list`** (nguyên liệu hiện từng dòng, có dấu tích), graphic **`step`** (nhãn "Bước 2/5" + lời hướng dẫn), sau đó đồng hồ đếm ngược; AI: dán công thức → chia bước + lời đọc | **1** |
+| **Timeline / kể chuyện** | `slide` (chương), `lower-third`, chuyển cảnh | mốc thời gian (năm + thanh tiến trình theo chương), **clip ảnh + Ken Burns** | 2 |
+| **Data** | `stat` (số chạy), `slide` | biểu đồ cột/đường/tròn từ bảng nhỏ (dán CSV), bảng xếp hạng động | 3 |
+| **Làm đẹp** | `split` (trước/sau), `callout`, `magnifier`/`focus`, look | so sánh trước/sau bằng thanh kéo trượt, thẻ sản phẩm (tên, giá, màu), look làm mịn/tông ấm | 4 (cùng nhạc nền) |
+
+**Thiếu chung, ảnh hưởng mọi thể loại:** clip ảnh tĩnh (hiện clip phải là video), nhạc nền + giảm âm lượng khi có giọng đọc (M9 còn mở), chế độ **phủ kín khung** (cover) cho video dọc lệch tỉ lệ.
+
+**Bước 1 — Nấu ăn (đang làm):**
+- `shared/motion/recipe.ts`: `recipeSchema` (tên món, dòng phụ như "25 phút · 2 người", nguyên liệu ≤ 12 dòng, bước 1–10, ngôn ngữ vi/en) và nhãn theo ngôn ngữ ("Nguyên liệu", "Bước 2/5", "Lưu công thức").
+- `features/footage/lib/genres/recipe.ts`: `applyRecipe` chia thời lượng video: slide mở đầu → thẻ nguyên liệu → các bước chia đều → end card 3 giây; báo lỗi khi clip quá ngắn so với số bước.
+- Tab Templates có mục "By genre" → form công thức → "Build recipe video".
+- Mỗi nguyên liệu và mỗi bước có chỗ cho **một ảnh tùy chọn** (khóa S3); thẻ nguyên liệu hiện ảnh nếu có.
+- Để sau: áp cho cả video nhiều clip, lấy các bước làm lời đọc (giọng đọc M9, mỗi bước dài đúng bằng câu đọc), AI tách công thức, đồng hồ đếm ngược.
+
+**Bước 1b — Ảnh cho công thức (chủ dự án đề xuất 19/10):** người dùng chuẩn bị nguyên liệu, công thức, các bước; chỗ nào **thiếu ảnh** thì tải lên hoặc **gọi mô hình tạo ảnh**.
+- HyperFrames render được: ảnh là `<img>` trên trang, shim đã có `Img` và chờ ảnh tải (`delayRender`); ảnh không cần seek nên không gặp lỗi frame trống của video. Hiệu ứng Ken Burns làm bằng CSS theo frame.
+- ReelPilot phải làm: tải ảnh lên S3 cho từng mục; nút "Tạo bằng AI" từng mục và "Tạo tất cả ảnh còn thiếu"; `shared/ai/image.ts` dùng `generateImage` của AI SDK (giống `speech.ts`): `IMAGE_PROVIDER` = openai | google | test (test = ảnh giữ chỗ, cho dev/CI), giới hạn số ảnh mỗi ngày.
+- Bước không có video thì dùng ảnh + Ken Burns; video chỉ gồm ảnh cần **clip ảnh** (hiện clip phải là video).
+- Ảnh AI cho nguyên liệu thường ổn; ảnh minh họa thao tác dễ sai, nên gắn nhãn "ảnh minh họa" và cho thay.
+- **Câu hỏi mở Q7:** nhà cung cấp tạo ảnh và ngân sách (giống Q5 cho giọng đọc).
+
+**Xong khi:** từ một clip nấu ăn và một công thức, 1 thao tác cho ra video 9:16 có tiêu đề, nguyên liệu, từng bước và end card; preview và export giống nhau; hoàn tác một bước; có test unit + Playwright.
 
 ### Sau V3 (chưa xếp lịch)
 Đăng thẳng lên tài khoản quảng cáo; extension Chrome bắt click; thanh toán (build plan §2); mời thành viên; bản địa hoá giao diện; render phân tán (`@hyperframes/aws-lambda`/`gcp-cloud-run`) khi một VPS không đủ.
@@ -180,14 +222,15 @@ Thêm theo milestone:
 | Lệch tiếng/hình khi thêm audio (M9) | Trung bình | Audio do FFmpeg trộn, không ghi lại từ trình duyệt; test đo độ lệch |
 | Chất lượng TTS tiếng Việt và chi phí | Trung bình | Nghe thử A/B ở Q5; giới hạn số phút trong `limits.ts` |
 | Font brand kit thiếu glyph tiếng Việt (vd. Bebas Neue) | Thấp | Cảnh báo trong brand kit; font dự phòng có subset `vietnamese` |
-| Pháp lý: license ReelPilot, điều khoản | Cao | Q1, Q6 trước M7 |
+| Pháp lý: điều khoản sử dụng (khi mở cho người ngoài) | Thấp lúc này | License đã chốt không cần lo (Q1); điều khoản chỉ cần khi deploy công khai |
 
 ---
 
 ## 8. VIỆC NGAY TIẾP THEO
 
-1. Chủ dự án trả lời **Q1** (license / để repo private) và **Q3** (nơi deploy).
-2. M6: dựng image Docker cho worker và chạy `render-export.test.ts` trong container.
-3. M6: lấy 2–3 video quay màn hình thật (3–10 phút) để đo và kiểm tra.
-4. M6: thêm khung 4:5.
-5. Thiết kế dữ liệu template cho M8 (zod trong `shared/motion`) và lấy ý kiến chủ dự án về 4 template mẫu.
+1. ~~Q1, Q3~~ đã chốt 19/10. ~~M7 = docker compose local~~ ✅ xong.
+2. ~~M6: dựng image Docker cho worker và chạy `render-export.test.ts` trong container.~~ ✅
+3. M6: lấy 2–3 video quay màn hình thật (3–10 phút) để đo và kiểm tra (**cần chủ dự án gửi video**).
+4. ~~M6: thêm khung 4:5.~~ ✅
+5. ~~Thiết kế dữ liệu template cho M8 (zod trong `shared/motion`) và lấy ý kiến chủ dự án về 4 template mẫu.~~ ✅ (M8 xong)
+6. **M12 bước 1: template nấu ăn** (đang làm), rồi timeline → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).

@@ -40,7 +40,11 @@ export async function renderVideo(input: {
     const jobFile = join(dir, "job.json")
     await writeFile(
       jobFile,
-      JSON.stringify({ props: input.props, outputPath: input.outputPath })
+      JSON.stringify({
+        props: input.props,
+        outputPath: input.outputPath,
+        workers: env.RENDER_WORKERS,
+      })
     )
     return await new Promise((done, fail) => {
       const child = spawn(

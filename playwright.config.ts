@@ -25,7 +25,9 @@ export default defineConfig({
       use: { ...devices["iPhone 13 Mini"], defaultBrowserType: "chromium" },
     },
   ],
-  webServer: [
+  // E2E_NO_SERVER=1: test an app and worker that already run (the local
+  // Docker stack, deploy/local/compose.yml) instead of starting them here.
+  webServer: process.env.E2E_NO_SERVER ? undefined : [
     {
       command: `npm run build && npm run start -- --port ${port}`,
       url: baseURL,

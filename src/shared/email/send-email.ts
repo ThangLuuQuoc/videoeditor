@@ -11,7 +11,10 @@ const resend = () => (client ??= new Resend(env.RESEND_API_KEY))
 
 /**
  * Sends a React Email template as HTML with a plain-text alternative.
- * Throws PROVIDER_FAILED if Resend rejects the message.
+ * Throws PROVIDER_FAILED if Resend rejects the message. With
+ * EMAIL_TRANSPORT=console (a local stack with no mail account) it prints
+ * the plain-text email to the server log instead, so a magic link can be
+ * copied from there.
  */
 export async function sendEmail(input: {
   to: string
@@ -22,6 +25,13 @@ export async function sendEmail(input: {
     render(input.react),
     render(input.react, { plainText: true }),
   ])
+
+  if (env.EMAIL_TRANSPORT === "console") {
+    console.info(
+      `[email] to ${input.to} · ${input.subject}\n${text}\n[email] end`
+    )
+    return
+  }
 
   const { error } = await resend().emails.send({
     from: env.EMAIL_FROM,

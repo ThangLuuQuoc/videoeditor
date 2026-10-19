@@ -24,9 +24,10 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Thay `@remotion/player` trong editor | ✅ **`StagePlayer`** (19/10), đã gỡ `@remotion/player` | Playwright desktop toàn bộ: 72 đạt, 1 bỏ qua; **mọi test editor/player đạt** (phát/dừng, J/K/L, bước frame, kéo trên sân khấu, toàn màn hình, project nhiều clip). Chạy lại `exports.spec.ts` với player mới: **3/3 đạt** (3,4 phút). Lý do không dùng `<hyperframes-player>`: `docs/decisions.md` 2026-10-19 |
 | Kế hoạch V3 theo repo thật | ✅ `ke-hoach-v3.md` (19/10) | thay `ke-hoach-trien-khai-v2.md` |
 | **V3 M6:** khung 4:5 (1080×1350) | ✅ | editor, export ("Feed"), trang chia sẻ; render thử ra 1080×1350 |
-| **V3 M6:** image Docker cho worker (`Dockerfile.worker`) | ✅ | build được (4,58 GB); trong container (`--memory=6g --cpus=4`): `render-export.test.ts` 2/2 và `voiceover.test.ts` (có tiếng) đạt; `npm run worker` khởi động với 3 loại job |
+| **V3 M6:** image Docker cho worker (nay là `Dockerfile` chung cho app + worker) | ✅ | build được (4,58 GB); trong container (`--memory=6g --cpus=4`): `render-export.test.ts` 2/2 và `voiceover.test.ts` (có tiếng) đạt; `npm run worker` khởi động với 3 loại job |
 | **V3 M8:** template + AI first cut | ✅ | 4 template; cấp clip (một bước hoàn tác) và cấp video (mọi clip + chuyển cảnh, "Undo template"); unit + DB test (gồm nhánh AI với model giả lập); `templates.spec.ts` 2/2 |
 | **V3 M9:** giọng đọc + phụ đề | ✅ (provider thật chưa chọn) | script (tự viết hoặc AI viết) → TTS từng câu → phụ đề theo câu, tô từ đang đọc → preview phát tiếng → export trộn tiếng. `voiceover.test.ts` (DB + S3 + render: im lặng trước câu đầu, có tiếng trong câu) và `voice.spec.ts` (giao diện → MP4 có audio) đều đạt với `VOICE_PROVIDER=test` |
+| **V3 M7:** chạy cả hệ thống bằng Docker local (Q3) | ✅ (19/10) | `deploy/local/compose.yml`; đăng nhập magic link (in ra log) bằng tay; Playwright `E2E_NO_SERVER=1` với stack: **33/33 đạt** (auth, footage, videos, templates, voice, exports; render chạy trong container worker) |
 
 ## 3. Thay đổi trong mã nguồn (so với ReelPilot `09b152b`)
 
@@ -45,7 +46,9 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | M8: `features/footage/lib/templates.ts`, `template-cut.ts`, `components/templates-panel.tsx`; `features/projects/lib/template-undo.ts`, `components/video-template-dialog.tsx`, `service.ts`/`actions.ts`/`schema.ts`/`queries.ts`; migration `20261019050209_project_template_undo` | template ở cấp clip và cấp video |
 | M9: `shared/motion/voice.ts`, `shared/ai/speech.ts`, `features/footage/lib/voice-script.ts`, `voiceover.ts`, `components/voice-panel.tsx`, `remotion/components/VoiceCaptions.tsx`, `remotion/voice-tracks.ts`, `remotion/hyperframes/use-track-audio.ts`; `render-process-hyperframes.ts` (thẻ `<audio>` + tải audio về trước) | giọng đọc + phụ đề |
 | `next.config.ts` | `serverExternalPackages` cho `@ffprobe-installer/ffprobe`, `ffmpeg-static` (app đo thời lượng audio) |
-| `Dockerfile.worker`, `.dockerignore` | image worker: chạy bằng user `node`, Chrome của HyperFrames, font Noto (có tiếng Việt), tắt telemetry |
+| `Dockerfile`, `.dockerignore`, `deploy/build.env` | **một image cho cả app và worker**: user `node`, Chrome của HyperFrames, font Noto (tiếng Việt), tắt telemetry; `next build` dùng placeholder trong `deploy/build.env` |
+| `deploy/local/compose.yml`, `deploy/local/app.env` | stack local (M7): Postgres, SeaweedFS, migrate, tạo bucket, app (cổng 3300), worker (giới hạn 4 CPU / 6 GB) |
+| `shared/email/send-email.ts`, `env-schema.ts` | `EMAIL_TRANSPORT=console`: in email (magic link) ra log thay vì gửi qua Resend |
 | `src/remotion/hyperframes/stage-player.tsx`, `player-clock.ts` (mới) | player của editor thay `@remotion/player`: đồng hồ `requestAnimationFrame` (có phát ngược), co giãn vừa khung, API `play/pause/seekTo/isPlaying/getCurrentFrame` + sự kiện `frameupdate/seeked/play/pause/ended` |
 | `next.config.ts` | `turbopack.resolveAlias`: `remotion` → shim (app không còn runtime Remotion) |
 | `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx` | dùng `StagePlayer`/`StagePlayerRef` |
@@ -103,10 +106,34 @@ npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự buil
 
 `npx vitest run` (toàn bộ) **không nạp env** thì có 2 file lỗi sẵn từ trước (`describe-moment`, `graphics`: thiếu biến môi trường). Nạp `local.env` như trên thì hết.
 
+### Chạy cả ReelPilot bằng Docker ở máy local (V3 M7, Q3)
+
+```bash
+docker compose -f deploy/local/compose.yml up -d --build   # lần đầu khá lâu (image ~4,6 GB)
+# mở http://localhost:3300 → Sign in → nhập email → "Email me a sign-in link"
+docker compose -f deploy/local/compose.yml logs app | grep -A8 '\[email\]'   # link đăng nhập in ra đây
+docker compose -f deploy/local/compose.yml down             # thêm -v để xoá cả dữ liệu
+```
+
+- Không cần tài khoản nào: email in ra log (`EMAIL_TRANSPORT=console`), giọng đọc là tiếng bíp (`VOICE_PROVIDER=test`).
+- **Đăng nhập Google/GitHub không chạy** (cần OAuth app thật). **Tính năng AI** (tạo brand kit từ URL, AI director, AI viết script) cần key thật: tạo `deploy/local/secrets.env` (đã nằm trong `.gitignore`) với `ANTHROPIC_API_KEY=…` và `AI_TEXT_MODEL=…`, rồi chạy lại `up -d`.
+- Cổng: app **3300**, S3 **18340**, Postgres **55440** (tránh 3100/5432/8333 mà các dự án khác trên máy dev đang dùng).
+- S3 được truy cập qua `http://host.docker.internal:18340` từ **cả trình duyệt lẫn container** (link đã ký phải mở được ở cả hai phía). Docker Desktop tự thêm tên này vào file `hosts` của Windows.
+- Chạy Playwright với stack này (không tự bật app/worker: `E2E_NO_SERVER=1`):
+
+```bash
+E2E_NO_SERVER=1 E2E_PORT=3300 STORAGE_TESTS=1 VOICE_PROVIDER=test \
+DATABASE_URL_UNPOOLED=postgresql://postgres:postgres@localhost:55440/reelpilot \
+BETTER_AUTH_SECRET=local-only-5b2e8f1c9d4a7e3b6c0f2a8d1e9b4c7a \
+npx playwright test --project=desktop --workers=2
+```
+
+- Mạng chậm (~90 kB/s tới Debian): build lần đầu mất hơn 1 giờ. Đừng sửa các bước trước `hyperframes browser ensure` trong `Dockerfile` (kể cả đổi thứ tự `ENV`), nếu không cả ~1 GB sẽ tải lại.
+
 Image worker và test render bên trong container (dùng `rp-pg`/`rp-s3` của máy qua `host.docker.internal`):
 
 ```bash
-docker build -f Dockerfile.worker -t reelpilot-worker:dev .
+docker build -t reelpilot-worker:dev .
 # chờ S3/Postgres sẵn sàng (curl http://localhost:18333) rồi:
 docker run --rm --memory=6g --cpus=4 --env-file docs/hyperframes/spike-phase0/e2e/docker.env \
   --add-host host.docker.internal:host-gateway reelpilot-worker:dev \
@@ -128,7 +155,7 @@ docker run --rm --memory=6g --cpus=4 --env-file docs/hyperframes/spike-phase0/e2
 9. Docker Desktop có thể treo (`docker info` không trả lời) và nút restart trong giao diện cũng có thể treo theo. Cách đã dùng: dừng hẳn các tiến trình `Docker Desktop`/`com.docker.backend` rồi mở lại. Việc này khởi động lại **mọi** container trên máy.
 10. **Cổng 3100 có thể bị dự án khác chiếm** (trên máy dev: `auth-platform-auth-server-1`). Playwright đặt `reuseExistingServer` khi không chạy CI nên sẽ dùng nhầm server đó, và mọi trang trả "404 Not Found" trơn. Dùng `E2E_PORT` (đã thêm vào `playwright.config.ts`); `local.env` đặt `E2E_PORT=3200` cùng `BETTER_AUTH_URL`/`NEXT_PUBLIC_APP_URL` cổng 3200, rồi chạy lại `npm run storage:cors` để thêm CORS cho origin mới.
 
-11. **Lỗi chập chờn khi máy quá tải** (19/10): khi chạy cả bộ vitest kèm 2 test render song song, `hyperframes-seek` đã fail **1 lần** (frame 3 không thấy footage; lượt đó mất 333 giây so với bình thường 40–90 giây). 6 lượt song song sau đó đều đạt. Production chạy **1 render mỗi lần** (`renderExportJob`), nên ít gặp hơn. Nếu gặp lại: test in danh sách frame sai và giữ video ở `%TEMP%/reelpilot-seek-failure-*.mp4`.
+11. **Frame trống khi HyperFrames chia nhiều worker** (19/10, đã sửa): với `--workers auto` (mặc định của CLI), trên máy có GPU HyperFrames chia render cho **5 worker Chrome**. Một worker treo (`Runtime.callFunctionOn timed out`), CLI chụp lại 98 frame còn thiếu bằng 2 worker, và 1–2 frame ra **không có footage**. Lượt đó mất 335 giây thay vì ~30 giây; đây cũng là nguyên nhân của lỗi "chập chờn khi máy quá tải" ghi trước đó. Đã sửa: `RENDER_WORKERS` (mặc định **1**) được truyền thành `--workers`; với 1 worker test `hyperframes-seek` đạt trong 33 giây. Muốn thử song song thì đặt `RENDER_WORKERS=auto` hoặc một số, nhưng phải chạy lại test này trước.
     - Đã thử chờ `requestVideoFrameCallback` sau mỗi lần seek, nhưng callback này **không chạy trong chế độ chụp của HyperFrames**: mỗi frame mất thêm 1 giây timeout, render chậm gấp 4 lần và các test export bị timeout. **Đừng dùng lại cách này.**
 
 12. **HyperFrames chỉ tự tải audio qua HTTPS** ("Only HTTPS URLs are permitted in compositions"). `render-process-hyperframes.ts` tự tải từng dòng thoại vào thư mục project trước khi render, nên chạy được cả với SeaweedFS (HTTP) ở local.
@@ -138,10 +165,11 @@ docker run --rm --memory=6g --cpus=4 --env-file docs/hyperframes/spike-phase0/e2
 17. Sau khi Docker khởi động lại, **chờ SeaweedFS sẵn sàng** (`curl http://localhost:18333`) rồi mới chạy test; nếu không sẽ gặp `socket hang up`.
 18. Image worker nặng 4,58 GB (Chrome, Noto, toàn bộ dependency gồm cả dev vì worker chạy bằng `tsx`). Có thể tối ưu khi tới M7: build worker thành JS, bỏ dev dependency.
 15. Bật giọng đọc ở local/CI: `VOICE_PROVIDER=test` (đã có trong `ci.env`, `local.env`, `ci.yml`). Đây là **tiếng bíp thay cho giọng nói**, chỉ dùng để phát triển. Production cần `VOICE_PROVIDER=openai|elevenlabs` + `VOICE_MODEL` + `VOICE_ID` + key (Q5 trong V3).
+19. **Docker Desktop dừng VM giữa lúc build** (19/10, lần thứ 3): đang `next build` trong image thì engine dừng (`rpc error: EOF`), log không ghi rõ lý do. Lần build lại ngay sau đó đạt; trong suốt lượt đó ổ C: còn 4,5 GB, VM dùng tối đa 7,75 GB RAM, nên nhiều khả năng không phải do hết đĩa. Lưu ý: ổ C: trên máy dev chỉ còn ~4,5 GB, trong khi đĩa dữ liệu Docker (`docker_data.vhdx`, 77,6 GB) nằm trên C:. Nếu lỗi lặp lại, chuyển đĩa Docker sang F: (Docker Desktop → Settings → Resources → Disk image location).
 
 ## 6. Quyết định còn mở (cần chủ dự án)
 
-- **License mã ReelPilot**: repo gốc `aalleejustadev/ReelPilot` **không có file LICENSE**. Mặc định mọi quyền thuộc tác giả. Cần xin phép trước khi phân phối công khai, hoặc để repo `videoeditor` ở chế độ private.
+- ~~License mã ReelPilot~~: **đã chốt 19/10, không cần quan tâm** (repo gốc public, đi kèm video hướng dẫn). Nơi deploy: **chỉ Docker local** để test (V3 Q3).
 - **License Remotion**: nếu công ty thuộc diện miễn phí (≤ 3 người) thì lý do chuyển engine chủ yếu là định hướng dài hạn. Cần xác nhận lại trên remotion.pro.
 - D1–D4 trong `ke-hoach-trien-khai-v2.md` mục 3. D1 (nguồn dữ liệu gốc) coi như đã có đáp án: `src/shared/motion`.
 
