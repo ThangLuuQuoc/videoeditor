@@ -23,6 +23,10 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Playwright `tests/e2e/exports.spec.ts` (qua giao diện: build app + worker + Postgres + SeaweedFS) | ✅ **3/3 đạt** (4,1 phút, 19/10) | export clip + tải về + chia sẻ/tắt chia sẻ; báo export cũ sau khi sửa; export + chia sẻ cả video. Engine = HyperFrames (mặc định, không đặt `RENDER_ENGINE`) |
 | Thay `@remotion/player` trong editor | ✅ **`StagePlayer`** (19/10), đã gỡ `@remotion/player` | Playwright desktop toàn bộ: 72 đạt, 1 bỏ qua; **mọi test editor/player đạt** (phát/dừng, J/K/L, bước frame, kéo trên sân khấu, toàn màn hình, project nhiều clip). Chạy lại `exports.spec.ts` với player mới: **3/3 đạt** (3,4 phút). Lý do không dùng `<hyperframes-player>`: `docs/decisions.md` 2026-10-19 |
 | Kế hoạch V3 theo repo thật | ✅ `ke-hoach-v3.md` (19/10) | thay `ke-hoach-trien-khai-v2.md` |
+| **V3 M6:** khung 4:5 (1080×1350) | ✅ | editor, export ("Feed"), trang chia sẻ; render thử ra 1080×1350 |
+| **V3 M6:** image Docker cho worker (`Dockerfile.worker`) | ⏳ **chưa build xong** | lần 1 lỗi đường dẫn Chrome (đã sửa); lần 2 Docker Desktop sập giữa chừng do máy quá tải. Cần build lại khi máy rảnh, rồi chạy `render-export.test.ts` trong container |
+| **V3 M8:** template + AI first cut | ✅ | 4 template; cấp clip (một bước hoàn tác) và cấp video (mọi clip + chuyển cảnh, "Undo template"); unit + DB test (gồm nhánh AI với model giả lập); `templates.spec.ts` 2/2 |
+| **V3 M9:** giọng đọc + phụ đề | ✅ (provider thật chưa chọn) | script (tự viết hoặc AI viết) → TTS từng câu → phụ đề theo câu, tô từ đang đọc → preview phát tiếng → export trộn tiếng. `voiceover.test.ts` (DB + S3 + render: im lặng trước câu đầu, có tiếng trong câu) và `voice.spec.ts` (giao diện → MP4 có audio) đều đạt với `VOICE_PROVIDER=test` |
 
 ## 3. Thay đổi trong mã nguồn (so với ReelPilot `09b152b`)
 
@@ -37,6 +41,11 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | `src/shared/render/__tests__/hyperframes-seek.test.ts` (mới) | test hồi quy: render footage mã vạch qua HyperFrames, giải mã từng frame, so với `outputLayout` |
 | `.github/workflows/ci.yml` | cache + `npx hyperframes browser ensure`, tắt telemetry |
 | `playwright.config.ts` | cổng test đọc từ `E2E_PORT` (mặc định 3100 như CI) |
+| 4:5: `FootageStage.tsx` (`stageSizes`), `motion-stage.tsx`, `exports/schema.ts`, `export-dialog.tsx`, `app/v/[token]/page.tsx` | khung feed 4:5 |
+| M8: `features/footage/lib/templates.ts`, `template-cut.ts`, `components/templates-panel.tsx`; `features/projects/lib/template-undo.ts`, `components/video-template-dialog.tsx`, `service.ts`/`actions.ts`/`schema.ts`/`queries.ts`; migration `20261019050209_project_template_undo` | template ở cấp clip và cấp video |
+| M9: `shared/motion/voice.ts`, `shared/ai/speech.ts`, `features/footage/lib/voice-script.ts`, `voiceover.ts`, `components/voice-panel.tsx`, `remotion/components/VoiceCaptions.tsx`, `remotion/voice-tracks.ts`, `remotion/hyperframes/use-track-audio.ts`; `render-process-hyperframes.ts` (thẻ `<audio>` + tải audio về trước) | giọng đọc + phụ đề |
+| `next.config.ts` | `serverExternalPackages` cho `@ffprobe-installer/ffprobe`, `ffmpeg-static` (app đo thời lượng audio) |
+| `Dockerfile.worker`, `.dockerignore` | image worker (chưa kiểm chứng) |
 | `src/remotion/hyperframes/stage-player.tsx`, `player-clock.ts` (mới) | player của editor thay `@remotion/player`: đồng hồ `requestAnimationFrame` (có phát ngược), co giãn vừa khung, API `play/pause/seekTo/isPlaying/getCurrentFrame` + sự kiện `frameupdate/seeked/play/pause/ended` |
 | `next.config.ts` | `turbopack.resolveAlias`: `remotion` → shim (app không còn runtime Remotion) |
 | `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx` | dùng `StagePlayer`/`StagePlayerRef` |
@@ -110,6 +119,11 @@ npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự buil
 
 11. **Lỗi chập chờn khi máy quá tải** (19/10): khi chạy cả bộ vitest kèm 2 test render song song, `hyperframes-seek` đã fail **1 lần** (frame 3 không thấy footage; lượt đó mất 333 giây so với bình thường 40–90 giây). 6 lượt song song sau đó đều đạt. Production chạy **1 render mỗi lần** (`renderExportJob`), nên ít gặp hơn. Nếu gặp lại: test in danh sách frame sai và giữ video ở `%TEMP%/reelpilot-seek-failure-*.mp4`.
     - Đã thử chờ `requestVideoFrameCallback` sau mỗi lần seek, nhưng callback này **không chạy trong chế độ chụp của HyperFrames**: mỗi frame mất thêm 1 giây timeout, render chậm gấp 4 lần và các test export bị timeout. **Đừng dùng lại cách này.**
+
+12. **HyperFrames chỉ tự tải audio qua HTTPS** ("Only HTTPS URLs are permitted in compositions"). `render-process-hyperframes.ts` tự tải từng dòng thoại vào thư mục project trước khi render, nên chạy được cả với SeaweedFS (HTTP) ở local.
+13. **`prisma migrate dev` treo khi chạy không có terminal** (chờ nhập liệu) và để lại tiến trình giữ advisory lock. Dùng `npx prisma migrate dev --create-only --name <tên> < /dev/null` rồi `npx prisma migrate deploy`.
+14. **Đừng chạy build Docker cùng lúc với bộ test lớn** trên máy dev: lần 19/10 làm Chrome báo `ERR_INSUFFICIENT_RESOURCES`, worker Playwright tự thoát, và Docker Desktop sập.
+15. Bật giọng đọc ở local/CI: `VOICE_PROVIDER=test` (đã có trong `ci.env`, `local.env`, `ci.yml`). Đây là **tiếng bíp thay cho giọng nói**, chỉ dùng để phát triển. Production cần `VOICE_PROVIDER=openai|elevenlabs` + `VOICE_MODEL` + `VOICE_ID` + key (Q5 trong V3).
 
 ## 6. Quyết định còn mở (cần chủ dự án)
 

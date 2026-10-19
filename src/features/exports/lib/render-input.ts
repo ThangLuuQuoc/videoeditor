@@ -11,6 +11,7 @@ import {
   parseStoredShot,
   presentationFor,
   transitionSchema,
+  voiceKeys,
   type TimedShot,
 } from "@/shared/motion"
 import { signedFileUrl } from "@/shared/storage"
@@ -162,13 +163,22 @@ export async function loadRenderInput(
         clip.status === "READY" ? sign(clip.videoKey) : null,
         sign(clip.posterKey),
       ])
+      const presentation = presentationFor(clip.presentation, colors)
+      const keys = voiceKeys(presentation.voice)
+      const voiceLinks = await Promise.all(keys.map((key) => sign(key)))
       return {
         id: clip.id,
         videoUrl: videoUrl ?? "",
         posterUrl,
         videoWidth: clip.width ?? 1920,
         videoHeight: clip.height ?? 1080,
-        presentation: presentationFor(clip.presentation, colors),
+        presentation,
+        voiceUrls: Object.fromEntries(
+          keys.flatMap((key, index) => {
+            const url = voiceLinks[index]
+            return url ? [[key, url]] : []
+          })
+        ),
         shots,
         durationMs: clip.durationMs ?? 1,
         transition:

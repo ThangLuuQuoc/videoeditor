@@ -7,6 +7,18 @@
 
 ---
 
+## TIẾN ĐỘ (cập nhật 19/10/2026)
+
+| Milestone | Trạng thái |
+| :--- | :--- |
+| M6 Gia cố engine | Khung 4:5 ✅ · test hồi quy seek + bước Chrome trong CI ✅ · `Dockerfile.worker` ⏳ (chưa build xong) · footage dài thật ⏳ · lỗi chập chờn: đã ghi lại, chưa có nguyên nhân gốc |
+| M7 Deploy | ⏸ chờ Q1, Q3, Q6 |
+| M8 Template & AI first cut | ✅ cấp clip + cấp video, có hoàn tác; test unit/DB/Playwright |
+| M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
+| M10, M11 | chưa bắt đầu |
+
+Chi tiết từng hạng mục: `README.md` mục 2.
+
 ## 0. TÓM TẮT
 
 - **Đã xong (V2.5):** ReelPilot V1 (editor biến quay màn hình thành video quảng cáo) giờ export bằng **HyperFrames** và xem trước bằng **StagePlayer**, cả hai chạy chung một shim. App **không còn runtime Remotion**. Bằng chứng: khớp từng frame với Remotion, test export thật với DB + S3, toàn bộ Playwright bản desktop đạt.

@@ -30,6 +30,7 @@ import {
   StagePlayer,
   type StagePlayerRef,
 } from "@/remotion/hyperframes/stage-player"
+import { voiceTracks } from "@/remotion/voice-tracks"
 import { useFullscreen, useSpaceToPlay } from "@/shared/hooks/use-player-keys"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
@@ -86,6 +87,8 @@ export function ProjectPlayer({
     () => ({ ...input, preview: true, playing: isPlaying, reduceMotion }),
     [input, isPlaying, reduceMotion]
   )
+  // Every clip's voiceover on the video's timeline, as the export mixes it.
+  const audioTracks = useMemo(() => voiceTracks(input.clips), [input.clips])
 
   const seek = useCallback((ms: number) => {
     const frame = Math.round((ms / 1000) * stageFps)
@@ -182,6 +185,7 @@ export function ProjectPlayer({
                 component={ProjectStage}
                 inputProps={inputProps}
                 durationInFrames={framesFor(durationMs)}
+                audioTracks={audioTracks}
                 compositionWidth={size.width}
                 compositionHeight={size.height}
                 fps={stageFps}

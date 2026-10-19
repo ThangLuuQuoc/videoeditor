@@ -17,6 +17,7 @@ import {
   ShapesIcon,
   SparklesIcon,
   SquareIcon,
+  MicIcon,
   TypeIcon,
   Undo2Icon,
   VideoIcon,
@@ -57,6 +58,7 @@ import {
   isLayoutGraphic,
   isScreenGraphic,
   type GraphicItem,
+  type VoiceLanguage,
 } from "@/shared/motion"
 import type { StageFonts } from "@/remotion/components/TextLayer"
 import { Button } from "@/shared/ui/button"
@@ -73,6 +75,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import {
   addFootageMarker,
   directFootageEdit,
+  makeVoiceover,
+  writeVoiceScript,
   freshFootageLinks,
   moveFootageMarker,
   suggestMomentGraphic,
@@ -145,6 +149,7 @@ import {
 } from "./editor-panels"
 import { MomentsPanel } from "./moments-panel"
 import { TemplatesPanel } from "./templates-panel"
+import { VoicePanel } from "./voice-panel"
 import { MotionStage, stageAspects, type StageAspect } from "./motion-stage"
 import { stageFps } from "@/remotion/compositions/FootageStage"
 import { err, type Result } from "@/shared/lib/result"
@@ -170,6 +175,7 @@ type Tool =
   | "shot"
   | "cuts"
   | "text"
+  | "voice"
   | "graphics"
   | "lens"
   | "style"
@@ -186,6 +192,7 @@ const tools: { id: Tool; label: string; icon: React.ComponentType }[] = [
   { id: "shot", label: "Camera", icon: VideoIcon },
   { id: "cuts", label: "Cuts", icon: ScissorsIcon },
   { id: "text", label: "Text", icon: TypeIcon },
+  { id: "voice", label: "Voice", icon: MicIcon },
   { id: "graphics", label: "Graphics", icon: ShapesIcon },
   { id: "lens", label: "Lens", icon: ApertureIcon },
   { id: "style", label: "Style", icon: PaletteIcon },
@@ -295,6 +302,9 @@ export function FootageEditor({
   kitSite,
   backTo = null,
   video = null,
+  voiceUrls: initialVoiceUrls = {},
+  voiceSetUp = false,
+  voiceIsTest = false,
 }: {
   clip: FootageDetail
   videoUrl: string
@@ -323,6 +333,12 @@ export function FootageEditor({
     single: boolean
     addClipHref: string
   } | null
+  /** Signed links for the voiceover's lines, by storage key. */
+  voiceUrls?: Record<string, string>
+  /** Whether the server has a voice provider (VOICE_PROVIDER). */
+  voiceSetUp?: boolean
+  /** The development tone stands in for a voice. */
+  voiceIsTest?: boolean
 }) {
   const playerRef = useRef<StagePlayerRef>(null)
   const [links, renewLinks] = useStableLinks(clip.id, {
@@ -336,6 +352,9 @@ export function FootageEditor({
   const [isPlaying, setPlaying] = useState(false)
   const [isAdding, startAdd] = useTransition()
   const [isDirecting, startDirect] = useTransition()
+  const [voiceUrls, setVoiceUrls] = useState(initialVoiceUrls)
+  const [isWritingScript, setWritingScript] = useState(false)
+  const [isVoicing, setVoicing] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(
     clip.markers[0]?.id ?? null
   )
@@ -1170,6 +1189,59 @@ export function FootageEditor({
     take: number
   } | null>(null)
 
+  // ── Voiceover ──
+  async function writeScript(language: VoiceLanguage) {
+    setWritingScript(true)
+    const result = await writeVoiceScript({
+      footageId: clip.id,
+      language,
+      note: "",
+    })
+    setWritingScript(false)
+    if (!result.ok) {
+      toast.add({ type: "error", title: result.error.message })
+      return null
+    }
+    return result.data.script
+  }
+
+  async function voiceScript(script: string, language: VoiceLanguage) {
+    setVoicing(true)
+    const result = await makeVoiceover({ footageId: clip.id, script, language })
+    setVoicing(false)
+    if (!result.ok) {
+      toast.add({ type: "error", title: result.error.message })
+      return
+    }
+    setVoiceUrls((current) => ({ ...current, ...result.data.urls }))
+    const before = history.present.presentation.voice
+    // One undo step: the old voiceover (or none) comes back.
+    change(
+      {
+        shots,
+        presentation: {
+          ...history.present.presentation,
+          voice: {
+            script,
+            language,
+            lines: result.data.lines,
+            captions: before?.captions ?? true,
+            captionStyle: before?.captionStyle ?? "bold",
+            volume: before?.volume ?? 1,
+          },
+        },
+      },
+      `voice:${Math.random()}`
+    )
+    toast.add({
+      type: "success",
+      title: "Voiceover ready",
+      description: `${result.data.lines.length} ${
+        result.data.lines.length === 1 ? "line" : "lines"
+      }. ${undoKey} undoes it.`,
+    })
+  }
+
   /** The moments with where the camera should aim (looks, templates). */
   function lookMoments() {
     return markers.map((marker) => ({
@@ -1510,6 +1582,32 @@ export function FootageEditor({
                   onIdle={treatStillStretches}
                 />
               </TabsContent>
+              <TabsContent value="voice">
+                <VoicePanel
+                  voice={presentation.voice}
+                  adMs={adDurationMs}
+                  setUp={voiceSetUp && !readOnly}
+                  isTest={voiceIsTest}
+                  isWriting={isWritingScript}
+                  isVoicing={isVoicing}
+                  onWrite={writeScript}
+                  onVoice={(script, language) =>
+                    void voiceScript(script, language)
+                  }
+                  onChange={(voice, control) =>
+                    changePresentation(
+                      { ...presentation, voice },
+                      `voice-${control}`
+                    )
+                  }
+                  onRemove={() =>
+                    change(
+                      { shots, presentation: { ...presentation, voice: null } },
+                      `voice-remove:${Math.random()}`
+                    )
+                  }
+                />
+              </TabsContent>
               <TabsContent value="text">
                 <TextPanel
                   items={presentation.texts}
@@ -1730,6 +1828,7 @@ export function FootageEditor({
               playerRef={playerRef}
               videoUrl={links.videoUrl}
               posterUrl={links.posterUrl}
+              voiceUrls={voiceUrls}
               presentation={presentation}
               shots={timedShots}
               durationMs={durationMs}

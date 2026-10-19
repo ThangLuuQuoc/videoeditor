@@ -12,6 +12,7 @@ import {
   type FootageStageProps,
 } from "@/remotion/compositions/FootageStage"
 import type { StageFonts } from "@/remotion/components/TextLayer"
+import { voiceTracks } from "@/remotion/voice-tracks"
 import {
   StagePlayer,
   type StagePlayerRef,
@@ -20,7 +21,11 @@ import {
 import { cn } from "@/shared/lib/utils"
 
 import { StageItemsLayer, type ItemPatch } from "./stage-items-layer"
-import type { Presentation, TimedShot } from "@/shared/motion"
+import {
+  defaultClipTransition,
+  type Presentation,
+  type TimedShot,
+} from "@/shared/motion"
 
 export const stageAspects = {
   "16:9": "16 / 9",
@@ -63,6 +68,7 @@ export function MotionStage({
   onMoveItem,
   interactive = false,
   bare = false,
+  voiceUrls,
 }: {
   playerRef: React.RefObject<StagePlayerRef | null>
   videoUrl: string
@@ -99,10 +105,38 @@ export function MotionStage({
   interactive?: boolean
   /** Full screen: no rounded corners or shadow around the stage. */
   bare?: boolean
+  /** Signed links for the voiceover's lines, by storage key. */
+  voiceUrls?: Record<string, string>
 }) {
   const size = stageSizes[aspect]
   // Where playback was, so switching shape (a new Player) keeps the spot.
   const lastFrame = useRef(0)
+  // The voiceover, as the export mixes it (one clip, starting at 0).
+  const audioTracks = useMemo(
+    () =>
+      voiceTracks([
+        {
+          id: "clip",
+          videoUrl,
+          videoWidth,
+          videoHeight,
+          presentation,
+          shots,
+          durationMs,
+          transition: defaultClipTransition,
+          voiceUrls,
+        },
+      ]),
+    [
+      videoUrl,
+      videoWidth,
+      videoHeight,
+      presentation,
+      shots,
+      durationMs,
+      voiceUrls,
+    ]
+  )
   const inputProps: FootageStageProps = useMemo(
     () => ({
       videoUrl,
@@ -211,6 +245,7 @@ export function MotionStage({
           // eslint-disable-next-line react-hooks/refs
           initialFrame={lastFrame.current}
           playbackRate={playbackRate}
+          audioTracks={audioTracks}
           style={{ width: "100%", height: "100%" }}
         />
         {interactive && !pickingFocus && onSelectItem && onMoveItem && (

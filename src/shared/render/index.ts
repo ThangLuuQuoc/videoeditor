@@ -25,8 +25,9 @@ const renderProcess = {
 export class RenderError extends Error {}
 
 /**
- * Renders `props` to an H.264 MP4 at `outputPath` (no audio track: the
- * editor has no audio). `onProgress` gets 0–1; aborting `signal` stops it.
+ * Renders `props` to an H.264 MP4 at `outputPath`, with the voiceover mixed
+ * in when a clip has one (HyperFrames only; the Remotion engine renders no
+ * audio). `onProgress` gets 0–1; aborting `signal` stops it.
  */
 export async function renderVideo(input: {
   props: RenderProps

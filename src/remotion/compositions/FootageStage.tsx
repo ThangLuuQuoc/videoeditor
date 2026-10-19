@@ -42,6 +42,7 @@ import {
   StageGraphics,
   timedGraphics,
 } from "../components/Graphics"
+import { VoiceCaptions } from "../components/VoiceCaptions"
 import {
   defaultStageFonts,
   TextLayer,
@@ -424,6 +425,14 @@ export function FootageStage({
             background={presentation.background}
             accents={accents}
           />
+          {presentation.voice?.captions && (
+            <VoiceCaptions
+              voice={presentation.voice}
+              adMs={timeMs}
+              fonts={fonts}
+              accent={accents[0] ?? "#facc15"}
+            />
+          )}
         </>
       )}
     </AbsoluteFill>

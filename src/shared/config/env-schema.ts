@@ -35,6 +35,14 @@ const envSchema = z.object({
   // CI turn it off; unit tests cover it with a mock model.
   AI_VISION: z.enum(["on", "off"]).default("on"),
 
+  // Voiceover (optional: unset turns it off). "test" is a tone, for
+  // development and CI only.
+  VOICE_PROVIDER: z.enum(["openai", "elevenlabs", "test"]).optional(),
+  VOICE_MODEL: z.string().min(1).optional(),
+  VOICE_ID: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  ELEVENLABS_API_KEY: z.string().min(1).optional(),
+
   // Neon Object Storage for the linked branch. Written by `neon env pull`.
   AWS_ACCESS_KEY_ID: z.string().min(1),
   AWS_SECRET_ACCESS_KEY: z.string().min(1),
@@ -50,11 +58,27 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url(),
 })
 
+/** A real voice provider needs its model, voice and key. */
+const voiceSchema = envSchema.superRefine((env, ctx) => {
+  const provider = env.VOICE_PROVIDER
+  if (!provider || provider === "test") return
+  const key = provider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY"
+  for (const name of ["VOICE_MODEL", "VOICE_ID", key] as const) {
+    if (!env[name]) {
+      ctx.addIssue({
+        code: "custom",
+        path: [name],
+        message: `Required when VOICE_PROVIDER is ${provider}.`,
+      })
+    }
+  }
+})
+
 export type Env = z.infer<typeof envSchema>
 
 /** Parses env vars, listing every problem by name (never by value). */
 export function parseEnv(source: Record<string, string | undefined>): Env {
-  const parsed = envSchema.safeParse(source)
+  const parsed = voiceSchema.safeParse(source)
   if (parsed.success) return parsed.data
 
   const problems = parsed.error.issues

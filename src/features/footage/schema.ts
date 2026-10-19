@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-import { presentationSchema, shotSchema } from "@/shared/motion"
+import {
+  presentationSchema,
+  shotSchema,
+  voiceLanguages,
+  voiceLimits,
+} from "@/shared/motion"
 
 import { recordingSchema } from "./lib/recording"
 
@@ -121,4 +126,25 @@ export const moveMarkerSchema = z.object({
 export const suggestGraphicSchema = z.object({
   footageId: idSchema,
   markerId: idSchema,
+})
+
+/** The AI writes a voiceover script for a clip, in a language. */
+export const writeVoiceScriptSchema = z.object({
+  footageId: idSchema,
+  language: z.enum(voiceLanguages),
+  note: z.string().trim().max(300, "Keep the note under 300 characters."),
+})
+
+/** Voice a script for a clip, line by line. */
+export const makeVoiceoverSchema = z.object({
+  footageId: idSchema,
+  language: z.enum(voiceLanguages),
+  script: z
+    .string()
+    .trim()
+    .min(1, "Write the script first.")
+    .max(
+      voiceLimits.script,
+      `Keep the script under ${voiceLimits.script} characters.`
+    ),
 })

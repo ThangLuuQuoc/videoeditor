@@ -25,6 +25,9 @@ const nextConfig: NextConfig = {
   // The editor plays src/remotion through the same Remotion shim the
   // HyperFrames export uses (src/remotion/hyperframes): no Remotion runtime
   // in the app. The Remotion export engine bundles separately (@remotion/bundler).
+  // Packages that ship native binaries (ffmpeg, ffprobe): required from
+  // node_modules at run time, never bundled (voiceover measures its audio).
+  serverExternalPackages: ["@ffprobe-installer/ffprobe", "ffmpeg-static"],
   turbopack: {
     resolveAlias: {
       remotion: "./src/remotion/hyperframes/remotion-shim.tsx",

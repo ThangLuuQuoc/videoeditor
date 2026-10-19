@@ -5,7 +5,7 @@ import { createServer } from "node:http"
 import { extname, join, normalize } from "node:path"
 
 const [dir = ".", port = "8791"] = process.argv.slice(2)
-const types = { ".mp4": "video/mp4", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml" }
+const types = { ".mp4": "video/mp4", ".wav": "audio/wav", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml" }
 
 createServer((req, res) => {
   const path = normalize(join(dir, decodeURIComponent(new URL(req.url, "http://x").pathname)))

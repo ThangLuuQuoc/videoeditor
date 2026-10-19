@@ -16,33 +16,31 @@ ENV NODE_ENV=production \
     HYPERFRAMES_SKIP_SKILLS=1 \
     NEXT_TELEMETRY_DISABLED=1
 
-WORKDIR /app
-
 # Fonts with Vietnamese glyphs (Noto) and emoji, for text the brand kit's
 # font can't draw; certificates for S3 and the AI provider.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates fonts-noto-core fonts-noto-color-emoji \
  && rm -rf /var/lib/apt/lists/*
 
+# Everything below runs as the unprivileged node user (rendering runs
+# Chrome); files are owned by it as they arrive, so no slow chown later.
+WORKDIR /app
+RUN chown node:node /app
+USER node
+
 # Dependencies first (cached while only source changes). postinstall runs
 # `prisma generate`, which needs the schema and config.
-COPY package.json package-lock.json prisma.config.ts ./
-COPY prisma ./prisma
+COPY --chown=node:node package.json package-lock.json prisma.config.ts ./
+COPY --chown=node:node prisma ./prisma
 RUN npm ci --include=dev --no-audit --no-fund
 
-# Chrome's system libraries (Playwright keeps the list for Debian), then
-# the Chrome Headless Shell HyperFrames renders with.
-RUN npx playwright install-deps chromium \
- && rm -rf /var/lib/apt/lists/* \
- && npx hyperframes browser ensure
-
-COPY . .
-
-# Rendering runs Chrome; run as the unprivileged node user.
-RUN chown -R node:node /app \
- && mkdir -p /home/node/.cache \
- && cp -r /root/.cache/puppeteer /home/node/.cache/ \
- && chown -R node:node /home/node/.cache
+# Chrome's system libraries need root (Playwright keeps the list for
+# Debian); Chrome Headless Shell itself goes into node's own cache.
+USER root
+RUN npx playwright install-deps chromium && rm -rf /var/lib/apt/lists/*
 USER node
+RUN npx hyperframes browser ensure
+
+COPY --chown=node:node . .
 
 CMD ["npm", "run", "worker"]

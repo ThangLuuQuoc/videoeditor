@@ -6,7 +6,14 @@ import { z } from "zod"
 
 import { getBrandKit } from "@/features/brand-kits"
 import { requireWorkspaceAccess } from "@/features/workspaces"
+import { voiceEnabled } from "@/shared/ai"
 import { aiLimits } from "@/shared/config/limits"
+import {
+  outputDuration,
+  presentationFor,
+  splitScript,
+  type VoiceLine,
+} from "@/shared/motion"
 import { enqueue } from "@/shared/jobs"
 import { AppError } from "@/shared/lib/errors"
 import { err, ok, toResultError, type Result } from "@/shared/lib/result"
@@ -20,18 +27,22 @@ import { directEdit, type EditPlan } from "./lib/direct-edit"
 import { parseStoredRecording } from "./lib/recording"
 import { parseStoredInsight } from "./lib/insight"
 import { suggestGraphic, type GraphicSuggestion } from "./lib/suggest-graphic"
+import { writeVoiceScript as writeScript } from "./lib/voice-script"
+import { voiceLines } from "./lib/voiceover"
 import { clipMediaUrls, getFootage } from "./queries"
 import {
   addMarkerSchema,
   completeUploadSchema,
   directEditSchema,
   footageIdSchema,
+  makeVoiceoverSchema,
   moveMarkerSchema,
   requestUploadSchema,
   suggestGraphicSchema,
   updateMarkerSchema,
   updatePresentationSchema,
   updateShotSchema,
+  writeVoiceScriptSchema,
 } from "./schema"
 import * as service from "./service"
 
@@ -449,6 +460,96 @@ export async function freshFootageLinks(footageId: unknown): Promise<
     const clip = await getFootage(workspace.id, parsed.data)
     if (!clip) throw new AppError("NOT_FOUND", "That clip is gone.")
     return ok(await clipMediaUrls(clip))
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+const voiceOff = () =>
+  new AppError("PROVIDER_FAILED", "Voiceover isn’t set up on this server.")
+
+/**
+ * The AI writes a voiceover script for the clip from what's on screen at its
+ * key moments, sized to the ad's length. Returns the script; nothing saved.
+ */
+export async function writeVoiceScript(
+  input: unknown
+): Promise<Result<{ script: string }>> {
+  try {
+    const parsed = writeVoiceScriptSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the request.")
+    if (!voiceEnabled()) throw voiceOff()
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const clip = await getFootage(workspace.id, parsed.data.footageId)
+    if (!clip || clip.status !== "READY" || !clip.durationMs) {
+      throw new AppError("NOT_FOUND", "That clip isn’t ready yet.")
+    }
+    await consumeRateLimit({
+      key: `voice-script:${workspace.id}`,
+      limit: aiLimits.voiceScriptsPerDay,
+      windowSeconds: 24 * 60 * 60,
+      message: `You’ve had ${aiLimits.voiceScriptsPerDay} scripts written today. Write this one yourself, or try again tomorrow.`,
+    })
+    const kit = await getBrandKit(workspace.id, clip.brandKitId)
+    const presentation = presentationFor(clip.presentation, kit?.colors ?? {})
+    const script = await writeScript({
+      language: parsed.data.language,
+      adMs: outputDuration(presentation.edit, clip.durationMs),
+      moments: clip.markers.map((marker) => ({
+        atMs: marker.atMs,
+        insight: parseStoredInsight(marker.insight),
+      })),
+      brand: {
+        name: kit?.name ?? "the product",
+        description: kit?.description ?? "",
+        audience: kit?.audience ?? "",
+        tone: kit?.tone ?? null,
+        bannedWords: kit?.bannedWords ?? [],
+      },
+      note: parsed.data.note,
+    })
+    return ok({ script })
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/**
+ * Voices the script line by line (each line a stored audio file) and
+ * returns the lines placed on the ad's timeline with links to play them.
+ * The editor puts them in the clip's voice and saves it like any edit.
+ */
+export async function makeVoiceover(
+  input: unknown
+): Promise<Result<{ lines: VoiceLine[]; urls: Record<string, string> }>> {
+  try {
+    const parsed = makeVoiceoverSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the script.")
+    if (!voiceEnabled()) throw voiceOff()
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const clip = await getFootage(workspace.id, parsed.data.footageId)
+    if (!clip || clip.status !== "READY") {
+      throw new AppError("NOT_FOUND", "That clip isn’t ready yet.")
+    }
+    // Each line is a paid text-to-speech call.
+    for (const _line of splitScript(parsed.data.script)) {
+      await consumeRateLimit({
+        key: `voice-lines:${workspace.id}`,
+        limit: aiLimits.voiceLinesPerDay,
+        windowSeconds: 24 * 60 * 60,
+        message: `You’ve voiced ${aiLimits.voiceLinesPerDay} lines today. Try again tomorrow.`,
+      })
+    }
+    const voiced = await voiceLines({
+      workspaceId: workspace.id,
+      kitId: clip.brandKitId,
+      footageId: clip.id,
+      script: parsed.data.script,
+      language: parsed.data.language,
+    })
+    return ok(voiced)
   } catch (error) {
     unstable_rethrow(error)
     return err(toResultError(error))

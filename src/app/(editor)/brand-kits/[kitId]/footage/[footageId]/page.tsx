@@ -11,9 +11,11 @@ import {
   getFootage,
   presentationFor,
   RefreshWhileProcessing,
+  voiceUrlsFor,
 } from "@/features/footage"
 import { getProjectName } from "@/features/projects"
 import { can, requireWorkspaceAccess } from "@/features/workspaces"
+import { voiceEnabled, voiceIsTest } from "@/shared/ai"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { LinkButton } from "@/shared/ui/link-button"
 import { Spinner } from "@/shared/ui/spinner"
@@ -102,6 +104,7 @@ export default async function FootageEditorPage({
 
   if (clip.status === "READY") {
     const media = await clipMediaUrls(clip)
+    const presentation = presentationFor(clip.presentation, colors)
     if (media.videoUrl) {
       return (
         <FootageEditor
@@ -109,7 +112,7 @@ export default async function FootageEditorPage({
           videoUrl={media.videoUrl}
           posterUrl={media.posterUrl}
           thumbnailsUrl={media.thumbnailsUrl}
-          initialPresentation={presentationFor(clip.presentation, colors)}
+          initialPresentation={presentation}
           brandColors={brandColors}
           readOnly={!canEdit}
           kitId={kitId}
@@ -119,6 +122,9 @@ export default async function FootageEditorPage({
           kitSite={siteLabelFor(kit.url)}
           backTo={backTo}
           video={video}
+          voiceUrls={await voiceUrlsFor(presentation)}
+          voiceSetUp={voiceEnabled()}
+          voiceIsTest={voiceIsTest()}
         />
       )
     }

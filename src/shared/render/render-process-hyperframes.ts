@@ -12,7 +12,7 @@
 // {"progress":0.42} … then {"durationMs":12345}.
 import { spawn } from "node:child_process"
 import { readFileSync } from "node:fs"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
@@ -29,6 +29,7 @@ import {
 } from "@/remotion/compositions/FootageStage"
 import { projectDurationMs } from "@/remotion/compositions/ProjectStage"
 import type { RenderProps } from "@/remotion/RenderVideo"
+import { voiceTracks, type AudioTrack } from "@/remotion/voice-tracks"
 
 const send = (message: object) =>
   process.stdout.write(`${JSON.stringify(message)}\n`)
@@ -64,7 +65,27 @@ async function bundleStage(outDir: string) {
 const inlineJson = (value: unknown) =>
   JSON.stringify(value).replace(/</g, "\\u003c")
 
-function page(props: RenderProps, frames: number) {
+/** Escapes text for an HTML attribute. */
+const attr = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")
+
+/**
+ * The voiceover as <audio> clips inside the composition root: the runtime
+ * times them and the producer mixes them into the MP4 with ffmpeg.
+ */
+function audioTags(tracks: AudioTrack[]) {
+  const seconds = (ms: number) => (ms / 1000).toFixed(3)
+  return tracks
+    .map(
+      (track, index) =>
+        `
+      <audio id="voice-${index}" src="${attr(track.src)}" data-start="${seconds(track.startMs)}"
+             data-duration="${seconds(track.durationMs)}" data-volume="${track.volume}"></audio>`
+    )
+    .join("")
+}
+
+function page(props: RenderProps, frames: number, tracks: AudioTrack[]) {
   const { width, height } = stageSizes[props.shape]
   // Exact frame count: the runtime derives frames from seconds × fps.
   const seconds = (frames / stageFps).toFixed(6)
@@ -86,7 +107,7 @@ function page(props: RenderProps, frames: number) {
          it, over it: the runtime syncs every <video> inside a composition root
          to the composition's clock, which would fight the shim's exact seeks. -->
     <div id="root" data-composition-id="main" data-start="0" data-duration="${seconds}"
-         data-width="${width}" data-height="${height}" data-fps="${stageFps}" data-no-timeline></div>
+         data-width="${width}" data-height="${height}" data-fps="${stageFps}" data-no-timeline>${audioTags(tracks)}</div>
     <div id="render-stage"></div>
     <script id="render-props" type="application/json">${inlineJson(props)}</script>
     <script src="assets/stage.js"></script>
@@ -162,6 +183,55 @@ function renderPage(projectDir: string, outputPath: string) {
   })
 }
 
+/** "audio/mpeg" → ".mp3"; falls back to the link's own extension. */
+function audioExtension(contentType: string | null, url: string) {
+  const byType: Record<string, string> = {
+    "audio/mpeg": ".mp3",
+    "audio/mp3": ".mp3",
+    "audio/wav": ".wav",
+    "audio/x-wav": ".wav",
+    "audio/wave": ".wav",
+    "audio/ogg": ".ogg",
+    "audio/aac": ".aac",
+    "audio/mp4": ".m4a",
+  }
+  const type = contentType?.split(";")[0]?.trim().toLowerCase() ?? ""
+  const fromPath = /\.(mp3|wav|ogg|aac|m4a)$/i.exec(new URL(url).pathname)
+  return byType[type] ?? (fromPath ? fromPath[0].toLowerCase() : ".mp3")
+}
+
+/**
+ * Downloads the voiceover next to the page and points each track at its
+ * file. The HyperFrames producer only fetches https links itself, and every
+ * asset should be on disk before the first frame anyway; a line that can't
+ * be fetched fails the render (a silent video would look done).
+ */
+async function localAudio(tracks: AudioTrack[], dir: string) {
+  if (tracks.length === 0) return tracks
+  await mkdir(join(dir, "assets", "voice"), { recursive: true })
+  return Promise.all(
+    tracks.map(async (track, index) => {
+      const response = await fetch(track.src, {
+        signal: AbortSignal.timeout(60_000),
+      })
+      if (!response.ok) {
+        throw new Error(
+          `Couldn't fetch voiceover line ${index + 1} (HTTP ${response.status}).`
+        )
+      }
+      const name = `assets/voice/${index}${audioExtension(
+        response.headers.get("content-type"),
+        track.src
+      )}`
+      await writeFile(
+        join(dir, name),
+        Buffer.from(await response.arrayBuffer())
+      )
+      return { ...track, src: name }
+    })
+  )
+}
+
 async function main() {
   const job = JSON.parse(await readFile(process.argv[2] ?? "", "utf8")) as {
     props: RenderProps
@@ -171,7 +241,8 @@ async function main() {
   const dir = await mkdtemp(join(tmpdir(), "reelpilot-hyperframes-"))
   try {
     await bundleStage(join(dir, "assets"))
-    await writeFile(join(dir, "index.html"), page(job.props, frames))
+    const tracks = await localAudio(voiceTracks(job.props.clips), dir)
+    await writeFile(join(dir, "index.html"), page(job.props, frames, tracks))
     await renderPage(dir, resolve(job.outputPath))
   } finally {
     await rm(dir, { recursive: true, force: true })

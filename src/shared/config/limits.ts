@@ -23,4 +23,8 @@ export const aiLimits = {
   momentDescriptionsPerDay: 300,
   /** "Let AI choose" a graphic for a moment, per workspace per day. */
   graphicSuggestionsPerDay: 100,
+  /** Voiceover scripts the AI writes, per workspace per day. */
+  voiceScriptsPerDay: 40,
+  /** Lines voiced (each a paid text-to-speech call), per workspace per day. */
+  voiceLinesPerDay: 300,
 } as const

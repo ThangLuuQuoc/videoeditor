@@ -33,6 +33,8 @@ export type ProjectStageClip = {
   durationMs: number
   /** How it comes in from the clip before (ignored on the first). */
   transition: Transition
+  /** Signed links for its voiceover lines, by storage key (voice-tracks.ts). */
+  voiceUrls?: Record<string, string>
 }
 
 export type ProjectStageProps = {

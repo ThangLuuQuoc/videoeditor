@@ -1,7 +1,11 @@
 import "server-only"
 
 import { getBrandKit, logoUrlFor } from "@/features/brand-kits"
-import { parseStoredShot, presentationFor } from "@/features/footage"
+import {
+  parseStoredShot,
+  presentationFor,
+  voiceUrlsFor,
+} from "@/features/footage"
 import { db } from "@/shared/db"
 import {
   outputDuration,
@@ -168,6 +172,7 @@ export async function getProject(workspaceId: string, projectId: string) {
         shots,
         videoUrl,
         posterUrl,
+        voiceUrls: await voiceUrlsFor(presentation, hour),
       }
     })
   )

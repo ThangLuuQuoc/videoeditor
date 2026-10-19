@@ -27,6 +27,24 @@ export function footageFileKey(
   )
 }
 
+/** A voiced line of a clip's voiceover (its own folder in the clip's). */
+export function footageVoiceKey(
+  workspaceId: string,
+  kitId: string,
+  footageId: string,
+  file: string
+) {
+  return workspaceFileKey(
+    workspaceId,
+    "brand-kits",
+    kitId,
+    "footage",
+    footageId,
+    "voice",
+    file
+  )
+}
+
 export function originalFileName(type: FootageType) {
   return `original.${footageTypes[type]}` as const
 }

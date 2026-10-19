@@ -127,3 +127,24 @@ export async function probeVideo(
     hasAudio: Boolean(output.streams?.some((s) => s.codec_type === "audio")),
   }
 }
+
+/** An audio file's length in ms (ffprobe), or null if it isn't readable. */
+export async function probeAudioMs(
+  file: string,
+  options: { timeoutMs?: number; signal?: AbortSignal } = {}
+): Promise<number | null> {
+  try {
+    const { stdout } = await run(
+      "ffprobe",
+      ["-v", "error", "-print_format", "json", "-show_format", file],
+      { timeoutMs: options.timeoutMs ?? 30_000, signal: options.signal }
+    )
+    const seconds = Number((JSON.parse(stdout) as ProbeOutput).format?.duration)
+    return Number.isFinite(seconds) && seconds > 0
+      ? Math.round(seconds * 1000)
+      : null
+  } catch (error) {
+    if (error instanceof MediaToolError) return null
+    throw error
+  }
+}

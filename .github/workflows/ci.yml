@@ -36,6 +36,8 @@ env:
   # or update checks from CI runs.
   HYPERFRAMES_NO_TELEMETRY: "1"
   HYPERFRAMES_NO_UPDATE_CHECK: "1"
+  # Voiceover with the development tone (no provider account in CI).
+  VOICE_PROVIDER: test
 
 jobs:
   check:

@@ -21,8 +21,11 @@ import {
   type CSSProperties,
 } from "react"
 
+import type { AudioTrack } from "../voice-tracks"
+
 import { fitScale, framesAfter } from "./player-clock"
 import { ShimProviders, type VideoConfig } from "./remotion-shim"
+import { useTrackAudio } from "./use-track-audio"
 
 type FrameDetail = { frame: number }
 export type StagePlayerEvents = {
@@ -62,6 +65,8 @@ type StagePlayerProps<P extends object> = {
   initialFrame?: number
   /** −10…10, never 0; negative plays backwards. */
   playbackRate?: number
+  /** Sounds on the timeline (voice-tracks.ts), played in sync. */
+  audioTracks?: AudioTrack[]
   style?: CSSProperties
 }
 
@@ -75,6 +80,7 @@ function StagePlayerInner<P extends object>(
     fps,
     initialFrame = 0,
     playbackRate = 1,
+    audioTracks,
     style,
   }: StagePlayerProps<P>,
   ref: React.ForwardedRef<StagePlayerRef>
@@ -91,6 +97,16 @@ function StagePlayerInner<P extends object>(
   const anchor = useRef({ frame, at: 0 })
   const rafRef = useRef(0)
   const listeners = useRef(new Map<string, Set<(event: object) => void>>())
+  const syncAudio = useTrackAudio(audioTracks)
+  /** Brings the sound in line with the frame shown (silent unless 1× forward). */
+  const soundAt = useCallback(
+    (frameShown: number) =>
+      syncAudio(
+        (frameShown / fps) * 1000,
+        playingRef.current && rateRef.current === 1
+      ),
+    [fps, syncAudio]
+  )
 
   const emit = useCallback(
     <E extends keyof StagePlayerEvents>(
@@ -134,15 +150,17 @@ function StagePlayerInner<P extends object>(
       if (ended) {
         playingRef.current = false
         stopClock()
+        soundAt(next)
         // Forward stops on the last frame ("ended"), as the Player did with
         // moveToBeginningWhenEnded off; backwards stops on the first.
         if (rateRef.current > 0) emit("ended", undefined)
         else emit("pause", undefined)
         return
       }
+      soundAt(next)
       rafRef.current = requestAnimationFrame((time) => tickRef.current(time))
     }
-  }, [emit, fps, show, stopClock])
+  }, [emit, fps, show, soundAt, stopClock])
 
   const restartClock = useCallback(() => {
     anchor.current = { frame: frameRef.current, at: performance.now() }
@@ -152,7 +170,8 @@ function StagePlayerInner<P extends object>(
   useEffect(() => {
     rateRef.current = playbackRate
     if (playingRef.current) restartClock()
-  }, [playbackRate, restartClock])
+    soundAt(frameRef.current)
+  }, [playbackRate, restartClock, soundAt])
 
   // A shorter edit can leave the playhead past the end.
   useEffect(() => {
@@ -176,12 +195,14 @@ function StagePlayerInner<P extends object>(
         if (!playingRef.current) return
         playingRef.current = false
         stopClock()
+        soundAt(frameRef.current)
         emit("pause", undefined)
       },
       seekTo: (target: number) => {
         const next = Math.min(lastRef.current, Math.max(0, Math.round(target)))
         show(next)
         if (playingRef.current) restartClock()
+        soundAt(next)
         emit("seeked", { frame: next })
       },
       isPlaying: () => playingRef.current,
@@ -195,7 +216,7 @@ function StagePlayerInner<P extends object>(
         listeners.current.get(name)?.delete(listener as (event: object) => void)
       },
     }),
-    [emit, restartClock, show, stopClock]
+    [emit, restartClock, show, soundAt, stopClock]
   )
 
   // Fit the composition into the box, centred (the editor sizes the box to

@@ -4,6 +4,7 @@ import { clipEditSchema } from "./edit"
 import { graphicItemSchema, graphicLimits } from "./graphics"
 import { lensSchema } from "./lens"
 import { textItemSchema, textLimits, textStyleSchema } from "./text"
+import { voiceSchema } from "./voice"
 
 /**
  * How the screen recording is shown at a moment: rotations in degrees,
@@ -89,6 +90,8 @@ export const presentationSchema = z.object({
   textStyle: textStyleSchema.default({ animation: "word-rise" }),
   texts: z.array(textItemSchema).max(textLimits.items).default([]),
   graphics: z.array(graphicItemSchema).max(graphicLimits.items).default([]),
+  /** Voiceover and captions; null = none. */
+  voice: voiceSchema.nullable().default(null),
   /** The template last applied (features/footage/lib/templates.ts), if any. */
   template: z.string().max(40).nullable().default(null),
   /** Depth of field and progressive blur. */
