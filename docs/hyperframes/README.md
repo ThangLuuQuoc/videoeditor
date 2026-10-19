@@ -24,7 +24,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Thay `@remotion/player` trong editor | ✅ **`StagePlayer`** (19/10), đã gỡ `@remotion/player` | Playwright desktop toàn bộ: 72 đạt, 1 bỏ qua; **mọi test editor/player đạt** (phát/dừng, J/K/L, bước frame, kéo trên sân khấu, toàn màn hình, project nhiều clip). Chạy lại `exports.spec.ts` với player mới: **3/3 đạt** (3,4 phút). Lý do không dùng `<hyperframes-player>`: `docs/decisions.md` 2026-10-19 |
 | Kế hoạch V3 theo repo thật | ✅ `ke-hoach-v3.md` (19/10) | thay `ke-hoach-trien-khai-v2.md` |
 | **V3 M6:** khung 4:5 (1080×1350) | ✅ | editor, export ("Feed"), trang chia sẻ; render thử ra 1080×1350 |
-| **V3 M6:** image Docker cho worker (`Dockerfile.worker`) | ⏳ **chưa build xong** | lần 1 lỗi đường dẫn Chrome (đã sửa); lần 2 Docker Desktop sập giữa chừng do máy quá tải. Cần build lại khi máy rảnh, rồi chạy `render-export.test.ts` trong container |
+| **V3 M6:** image Docker cho worker (`Dockerfile.worker`) | ✅ | build được (4,58 GB); trong container (`--memory=6g --cpus=4`): `render-export.test.ts` 2/2 và `voiceover.test.ts` (có tiếng) đạt; `npm run worker` khởi động với 3 loại job |
 | **V3 M8:** template + AI first cut | ✅ | 4 template; cấp clip (một bước hoàn tác) và cấp video (mọi clip + chuyển cảnh, "Undo template"); unit + DB test (gồm nhánh AI với model giả lập); `templates.spec.ts` 2/2 |
 | **V3 M9:** giọng đọc + phụ đề | ✅ (provider thật chưa chọn) | script (tự viết hoặc AI viết) → TTS từng câu → phụ đề theo câu, tô từ đang đọc → preview phát tiếng → export trộn tiếng. `voiceover.test.ts` (DB + S3 + render: im lặng trước câu đầu, có tiếng trong câu) và `voice.spec.ts` (giao diện → MP4 có audio) đều đạt với `VOICE_PROVIDER=test` |
 
@@ -45,7 +45,7 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | M8: `features/footage/lib/templates.ts`, `template-cut.ts`, `components/templates-panel.tsx`; `features/projects/lib/template-undo.ts`, `components/video-template-dialog.tsx`, `service.ts`/`actions.ts`/`schema.ts`/`queries.ts`; migration `20261019050209_project_template_undo` | template ở cấp clip và cấp video |
 | M9: `shared/motion/voice.ts`, `shared/ai/speech.ts`, `features/footage/lib/voice-script.ts`, `voiceover.ts`, `components/voice-panel.tsx`, `remotion/components/VoiceCaptions.tsx`, `remotion/voice-tracks.ts`, `remotion/hyperframes/use-track-audio.ts`; `render-process-hyperframes.ts` (thẻ `<audio>` + tải audio về trước) | giọng đọc + phụ đề |
 | `next.config.ts` | `serverExternalPackages` cho `@ffprobe-installer/ffprobe`, `ffmpeg-static` (app đo thời lượng audio) |
-| `Dockerfile.worker`, `.dockerignore` | image worker (chưa kiểm chứng) |
+| `Dockerfile.worker`, `.dockerignore` | image worker: chạy bằng user `node`, Chrome của HyperFrames, font Noto (có tiếng Việt), tắt telemetry |
 | `src/remotion/hyperframes/stage-player.tsx`, `player-clock.ts` (mới) | player của editor thay `@remotion/player`: đồng hồ `requestAnimationFrame` (có phát ngược), co giãn vừa khung, API `play/pause/seekTo/isPlaying/getCurrentFrame` + sự kiện `frameupdate/seeked/play/pause/ended` |
 | `next.config.ts` | `turbopack.resolveAlias`: `remotion` → shim (app không còn runtime Remotion) |
 | `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx` | dùng `StagePlayer`/`StagePlayerRef` |
@@ -103,6 +103,17 @@ npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự buil
 
 `npx vitest run` (toàn bộ) **không nạp env** thì có 2 file lỗi sẵn từ trước (`describe-moment`, `graphics`: thiếu biến môi trường). Nạp `local.env` như trên thì hết.
 
+Image worker và test render bên trong container (dùng `rp-pg`/`rp-s3` của máy qua `host.docker.internal`):
+
+```bash
+docker build -f Dockerfile.worker -t reelpilot-worker:dev .
+# chờ S3/Postgres sẵn sàng (curl http://localhost:18333) rồi:
+docker run --rm --memory=6g --cpus=4 --env-file docs/hyperframes/spike-phase0/e2e/docker.env \
+  --add-host host.docker.internal:host-gateway reelpilot-worker:dev \
+  npx vitest run --no-file-parallelism src/features/exports/__tests__/render-export.test.ts src/features/footage/__tests__/voiceover.test.ts
+# chạy worker thật: bỏ phần lệnh phía sau tên image
+```
+
 ## 5. Vấn đề đã biết / chỗ dễ kẹt
 
 1. **Lỗi `currentTime` non-finite**: khi chưa biết `video.duration` (NaN), không được kẹp theo duration. Đã xử lý trong `targetTime`. **Seek không thành công thì render phải fail**: `seekToFrame` thử lại tối đa 30 giây (không gán lại `currentTime` khi đang seek, vì làm vậy sẽ khởi động lại lượt tải), sau đó ném lỗi ra cấp trang để HyperFrames dừng hẳn.
@@ -123,6 +134,9 @@ npx playwright test tests/e2e/exports.spec.ts --project=desktop      # tự buil
 12. **HyperFrames chỉ tự tải audio qua HTTPS** ("Only HTTPS URLs are permitted in compositions"). `render-process-hyperframes.ts` tự tải từng dòng thoại vào thư mục project trước khi render, nên chạy được cả với SeaweedFS (HTTP) ở local.
 13. **`prisma migrate dev` treo khi chạy không có terminal** (chờ nhập liệu) và để lại tiến trình giữ advisory lock. Dùng `npx prisma migrate dev --create-only --name <tên> < /dev/null` rồi `npx prisma migrate deploy`.
 14. **Đừng chạy build Docker cùng lúc với bộ test lớn** trên máy dev: lần 19/10 làm Chrome báo `ERR_INSUFFICIENT_RESOURCES`, worker Playwright tự thoát, và Docker Desktop sập.
+16. **Luôn giới hạn tài nguyên container render** (`--memory`, `--cpus`) và chạy test render từng file một (`--no-file-parallelism`). Không giới hạn, một lượt test trong container đã làm **Docker Desktop sập** (19/10).
+17. Sau khi Docker khởi động lại, **chờ SeaweedFS sẵn sàng** (`curl http://localhost:18333`) rồi mới chạy test; nếu không sẽ gặp `socket hang up`.
+18. Image worker nặng 4,58 GB (Chrome, Noto, toàn bộ dependency gồm cả dev vì worker chạy bằng `tsx`). Có thể tối ưu khi tới M7: build worker thành JS, bỏ dev dependency.
 15. Bật giọng đọc ở local/CI: `VOICE_PROVIDER=test` (đã có trong `ci.env`, `local.env`, `ci.yml`). Đây là **tiếng bíp thay cho giọng nói**, chỉ dùng để phát triển. Production cần `VOICE_PROVIDER=openai|elevenlabs` + `VOICE_MODEL` + `VOICE_ID` + key (Q5 trong V3).
 
 ## 6. Quyết định còn mở (cần chủ dự án)

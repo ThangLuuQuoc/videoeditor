@@ -11,7 +11,7 @@
 
 | Milestone | Trạng thái |
 | :--- | :--- |
-| M6 Gia cố engine | Khung 4:5 ✅ · test hồi quy seek + bước Chrome trong CI ✅ · `Dockerfile.worker` ⏳ (chưa build xong) · footage dài thật ⏳ · lỗi chập chờn: đã ghi lại, chưa có nguyên nhân gốc |
+| M6 Gia cố engine | Khung 4:5 ✅ · test hồi quy seek + bước Chrome trong CI ✅ · `Dockerfile.worker` ✅ (test render + giọng đọc đạt trong container) · footage dài thật ⏳ (cần video quay màn hình thật từ chủ dự án) · lỗi chập chờn: đã ghi lại, chưa có nguyên nhân gốc |
 | M7 Deploy | ⏸ chờ Q1, Q3, Q6 |
 | M8 Template & AI first cut | ✅ cấp clip + cấp video, có hoàn tác; test unit/DB/Playwright |
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
