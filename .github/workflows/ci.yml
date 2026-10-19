@@ -32,6 +32,10 @@ env:
   AWS_REGION: us-east-1
   STORAGE_TESTS: "1"
   NEXT_PUBLIC_APP_URL: http://localhost:3100
+  # Exports render with HyperFrames by default (RENDER_ENGINE); no telemetry
+  # or update checks from CI runs.
+  HYPERFRAMES_NO_TELEMETRY: "1"
+  HYPERFRAMES_NO_UPDATE_CHECK: "1"
 
 jobs:
   check:
@@ -64,6 +68,14 @@ jobs:
           path: node_modules/.remotion
           key: remotion-browser-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: remotion-browser-${{ runner.os }}-
+      # HyperFrames renders in its own Chrome Headless Shell (Puppeteer's cache).
+      - name: Cache HyperFrames' headless browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: hyperframes-browser-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: hyperframes-browser-${{ runner.os }}-
+      - run: npx hyperframes browser ensure
       - name: Start S3 server (SeaweedFS)
         run: |
           docker run -d --name s3 -p 8333:8333 \
@@ -115,6 +127,14 @@ jobs:
           path: node_modules/.remotion
           key: remotion-browser-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: remotion-browser-${{ runner.os }}-
+      # HyperFrames renders in its own Chrome Headless Shell (Puppeteer's cache).
+      - name: Cache HyperFrames' headless browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: hyperframes-browser-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: hyperframes-browser-${{ runner.os }}-
+      - run: npx hyperframes browser ensure
       - name: Start S3 server (SeaweedFS)
         run: |
           docker run -d --name s3 -p 8333:8333 \

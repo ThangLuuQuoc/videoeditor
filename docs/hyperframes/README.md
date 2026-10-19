@@ -1,6 +1,6 @@
 # HyperFrames cho ReelPilot — trạng thái & hướng dẫn làm tiếp
 
-> **Cập nhật:** 16/10/2026 (tối) · **Nhánh:** `main` = `hyperframes-export` trên `ThangLuuQuoc/videoeditor`
+> **Cập nhật:** 19/10/2026 · **Nhánh:** `main` = `hyperframes-export` trên `ThangLuuQuoc/videoeditor`
 > Đọc file này trước tiên khi tiếp tục trên máy khác. Mọi tài liệu kế hoạch và mã thử nghiệm nằm trong `docs/hyperframes/`.
 
 ## 1. Mục tiêu đang làm
@@ -17,7 +17,10 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | Render project 2 clip qua `renderVideo()` của app | ✅ chạy được | 14,8s video, 445 frame, render 40s (Remotion: 44s); font brand kit (Bebas Neue) hiển thị |
 | So pixel với bản Remotion cùng props | ✅ **khớp** | 445/445 frame ≥ 34,4 dB PSNR (trung vị 37,2), SSIM ≥ 0,990 — `spike-phase0/e2e/results/` |
 | `render-export.test.ts` (job export thật: Postgres + SeaweedFS S3 + render + upload) | ✅ 2/2 đạt | engine mặc định = HyperFrames; cách chạy ở mục 4 |
-| Playwright `tests/e2e/exports.spec.ts` (qua giao diện, cần build app + worker) | ⏳ **chưa chạy** | bước tiếp theo #1 |
+| Project nặng graphics: magnifier (`OffthreadVideo` thứ 2), logo + end card (`Img`), callout, lower-third, split, stat, chuyển cảnh zoom | ✅ **khớp Remotion** | 407/407 frame ≥ 34,2 dB, SSIM ≥ 0,990; HyperFrames 53s so với Remotion 81s; `spike-phase0/e2e/render-graphics.mts`, `results/compare-graphics.png` |
+| Test hồi quy seek trong repo: `src/shared/render/__tests__/hyperframes-seek.test.ts` | ✅ đạt (24s) | footage mã vạch + server có Range; **đã kiểm chứng test fail** khi cố ý làm hỏng shim. Chạy khi có `STORAGE_TESTS` (CI) hoặc `RENDER_TESTS=1` |
+| CI (`.github/workflows/ci.yml`) | ✅ đã thêm bước | cache `~/.cache/puppeteer` + `npx hyperframes browser ensure`, `HYPERFRAMES_NO_TELEMETRY=1`. Repo `videoeditor` **chưa có lượt chạy Actions nào** (cần bật Actions trong Settings) |
+| Playwright `tests/e2e/exports.spec.ts` (qua giao diện, cần build app + worker + DB + S3) | ⏳ **chưa chạy**: Docker Desktop trên máy dev bị treo ngày 19/10 | bước tiếp theo #1 |
 | Thay `@remotion/player` trong editor bằng `<hyperframes-player>` | ⏳ chưa làm | sau khi export ổn |
 | Viết lại kế hoạch thành v3 theo repo thật | ⏳ chưa làm | `ke-hoach-trien-khai-v2.md` một phần đã lỗi thời |
 
@@ -31,6 +34,8 @@ Thay **engine render export** của ReelPilot từ Remotion (`@remotion/renderer
 | `src/remotion/hyperframes/entry.tsx` (mới) | trang HyperFrames: đọc props từ `<script id="render-props">`, mount `RenderVideo`, xử lý `hf-seek` + `waitUntil` |
 | `src/shared/render/render-process-hyperframes.ts` (mới) | tiến trình con cùng giao thức với `render-process.ts`: esbuild bundle (alias `remotion` → shim) → trang HTML → `hyperframes render`; đọc tiến độ từ dòng `@hf-progress` |
 | `src/shared/render/index.ts` | chọn tiến trình theo `env.RENDER_ENGINE` |
+| `src/shared/render/__tests__/hyperframes-seek.test.ts` (mới) | test hồi quy: render footage mã vạch qua HyperFrames, giải mã từng frame, so với `outputLayout` |
+| `.github/workflows/ci.yml` | cache + `npx hyperframes browser ensure`, tắt telemetry |
 | `src/shared/config/env-schema.ts`, `.env.example` | thêm `RENDER_ENGINE` (`hyperframes` mặc định) |
 | `package.json` | thêm `hyperframes@0.8.164`, `esbuild@0.28.2` (ghim chính xác) |
 
@@ -86,7 +91,8 @@ npx vitest run src/features/exports/__tests__/render-export.test.ts --hookTimeou
 5. **Bebas Neue không có glyph tiếng Việt** ("ớ" rơi về font dự phòng). Chọn font brand kit có subset `vietnamese`.
 6. **Windows**: `core.autocrlf=true` làm `prettier --check` báo 305 file. Đây là lỗi kết thúc dòng, không phải lỗi code; chạy prettier trên Linux/CI hoặc đặt `core.autocrlf=input`.
 7. **Mạng máy dev cũ**: npm registry đi qua `http://`, `NODE_TLS_REJECT_UNAUTHORIZED=0`. `npm ci` có lúc lỗi mạng giữa chừng; chạy lại với `--fetch-retries=6`.
-8. Chrome cho HyperFrames nằm ở cache của Puppeteer (`~/.cache/puppeteer`). Image Docker của worker phải cài thêm (`npx hyperframes browser`), **chưa làm**.
+8. Chrome cho HyperFrames nằm ở cache của Puppeteer (`~/.cache/puppeteer`) và được tải bằng `npx hyperframes browser ensure` (CI đã có bước này). **Repo chưa có Dockerfile cho worker** (build plan để deploy ở mục Later). Khi viết, image cần: `npx hyperframes browser ensure` lúc build, thư viện hệ thống cho Chrome (`npx playwright install-deps chromium` hoặc tương đương), `HYPERFRAMES_NO_TELEMETRY=1`, `HYPERFRAMES_NO_UPDATE_CHECK=1`, và nguồn media có HTTP Range.
+9. Docker Desktop có thể treo (`docker info` không trả lời). Khởi động lại Docker Desktop sẽ khởi động lại **mọi** container trên máy; kiểm tra trước khi làm.
 
 ## 6. Quyết định còn mở (cần chủ dự án)
 
@@ -96,11 +102,11 @@ npx vitest run src/features/exports/__tests__/render-export.test.ts --hookTimeou
 
 ## 7. Bước tiếp theo (theo thứ tự)
 
-1. Playwright `tests/e2e/exports.spec.ts` (`npm run test:e2e` với `local.env`: tự build app và chạy worker, cần `npx playwright install chromium`).
-2. Thử footage thật (quay màn hình dài, GOP lớn) và project nhiều clip + magnifier + logo; đo thời gian render so với Remotion.
-3. Thêm test hồi quy dùng footage mã vạch (`spike-phase0/reelpilot-bridge/verify.mjs`) vào `src/shared/render/__tests__`.
-4. Dockerfile của worker: cài Chrome cho HyperFrames, đặt `HYPERFRAMES_NO_TELEMETRY=1`.
-5. Ghi quyết định vào `docs/decisions.md`; viết kế hoạch v3.
+1. Playwright `tests/e2e/exports.spec.ts`: dựng Postgres + SeaweedFS (mục 4), nạp `local.env`, `npx playwright install chromium`, rồi `npx playwright test tests/e2e/exports.spec.ts --project=desktop` (tự build app và chạy worker).
+2. Bật GitHub Actions cho `ThangLuuQuoc/videoeditor` và xem CI chạy xanh (bước browser ensure của HyperFrames là bước mới).
+3. Thử footage quay màn hình thật (dài, GOP lớn, VFR) và đo thời gian render so với Remotion.
+4. Thay `@remotion/player` trong editor bằng `<hyperframes-player>` (preview = render): `motion-stage.tsx`, `project-player.tsx`, `footage-editor.tsx`, `stage-items-layer.tsx`.
+5. Viết kế hoạch v3; Dockerfile worker khi tới phần deploy.
 
 ## 8. Bản đồ tài liệu
 
