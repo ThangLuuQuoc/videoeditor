@@ -8,6 +8,7 @@ import {
   RefreshWhenClipsReady,
 } from "@/features/projects"
 import { can, requireWorkspaceAccess } from "@/features/workspaces"
+import { voiceEnabled, voiceIsTest } from "@/shared/ai"
 
 export const metadata: Metadata = { title: "Video" }
 
@@ -56,6 +57,8 @@ export default async function VideoPage({
           canAdd: can(role, "content:create"),
         }}
         readOnly={!can(role, "content:edit")}
+        voiceSetUp={voiceEnabled()}
+        voiceIsTest={voiceIsTest()}
       />
     </>
   )

@@ -12,6 +12,7 @@ import { deleteFolder } from "@/shared/storage"
 
 import {
   appendClipSchema,
+  applyVideoRecipeSchema,
   applyVideoTemplateSchema,
   createProjectSchema,
   projectIdSchema,
@@ -179,6 +180,29 @@ export async function applyVideoTemplate(input: unknown): Promise<
     if (!parsed.success) throw invalid(parsed.error, "Pick a template.")
     const { workspace } = await requireWorkspaceAccess("content:edit")
     const result = await service.applyTemplateToVideo(workspace.id, parsed.data)
+    revalidatePath(`/videos/${parsed.data.projectId}`)
+    refreshProjects()
+    return ok(result)
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/** The recipe template across every clip of the video (V3 M12). */
+export async function applyVideoRecipe(input: unknown): Promise<
+  Result<{
+    version: number
+    transitions: Transition[]
+    applied: number
+    skipped: number
+  }>
+> {
+  try {
+    const parsed = applyVideoRecipeSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the recipe.")
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const result = await service.applyRecipeToVideo(workspace.id, parsed.data)
     revalidatePath(`/videos/${parsed.data.projectId}`)
     refreshProjects()
     return ok(result)

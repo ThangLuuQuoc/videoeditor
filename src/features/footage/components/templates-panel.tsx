@@ -21,6 +21,8 @@ export function TemplatesPanel({
   hasMoments,
   isDirecting,
   recipe,
+  voiceSetUp,
+  voiceIsTest,
   pictures,
   onApply,
   onFirstCut,
@@ -30,9 +32,12 @@ export function TemplatesPanel({
   hasMoments: boolean
   isDirecting: boolean
   recipe: Recipe | null
+  /** The server has a voice (the recipe's steps can be read aloud). */
+  voiceSetUp: boolean
+  voiceIsTest: boolean
   onApply: (id: TemplateId) => void
   onFirstCut: (id: TemplateId) => void
-  onBuildRecipe: (recipe: Recipe) => string | null
+  onBuildRecipe: (recipe: Recipe) => Promise<string | null>
   /** Pictures for the built recipe's ingredients and steps. */
   pictures: {
     urls: Record<string, string>
@@ -120,24 +125,35 @@ export function TemplatesPanel({
             moments needed.
           </p>
         </div>
+        {activeTemplate === "recipe-video" && (
+          <p className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+            This clip is part of a recipe across a whole video. Change the
+            recipe from the video&apos;s Template button, so the steps stay in
+            order across its clips. Pictures can be changed here.
+          </p>
+        )}
         <RecipeForm
           recipe={recipe}
           active={activeTemplate === "recipe"}
-          disabled={isDirecting}
+          disabled={isDirecting || activeTemplate === "recipe-video"}
+          voiceSetUp={voiceSetUp}
+          voiceIsTest={voiceIsTest}
           onBuild={onBuildRecipe}
         />
-        {recipe && activeTemplate === "recipe" && (
-          <RecipePictures
-            recipe={recipe}
-            pictureUrls={pictures.urls}
-            canMake={pictures.canMake}
-            makesPlaceholders={pictures.makesPlaceholders}
-            busy={pictures.busy}
-            onUpload={pictures.onUpload}
-            onMake={pictures.onMake}
-            onRemove={pictures.onRemove}
-          />
-        )}
+        {recipe &&
+          (activeTemplate === "recipe" ||
+            activeTemplate === "recipe-video") && (
+            <RecipePictures
+              recipe={recipe}
+              pictureUrls={pictures.urls}
+              canMake={pictures.canMake}
+              makesPlaceholders={pictures.makesPlaceholders}
+              busy={pictures.busy}
+              onUpload={pictures.onUpload}
+              onMake={pictures.onMake}
+              onRemove={pictures.onRemove}
+            />
+          )}
       </section>
     </div>
   )

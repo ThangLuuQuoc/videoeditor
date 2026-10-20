@@ -7,6 +7,7 @@ export { formatDuration, formatTimecode } from "./lib/format"
 export { stageFontsFor } from "./lib/stage-fonts"
 export { FootageUploader } from "./components/footage-uploader"
 export { ScreenRecorder } from "./components/screen-recorder"
+export { RecipeForm } from "./components/recipe-form"
 export {
   templateById,
   templateIds,

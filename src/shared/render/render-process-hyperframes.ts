@@ -139,11 +139,26 @@ function renderPage(projectDir: string, outputPath: string, workers: string) {
     HYPERFRAMES_NO_UPDATE_CHECK: "1",
     HYPERFRAMES_SKIP_SKILLS: "1",
     HYPERFRAMES_NO_CAPTURE_DOTENV: "1",
+    // With one worker the CLI otherwise turns on two faster paths that
+    // failed now and then on a Windows dev machine: drawElement capture
+    // ("Unable to capture screenshot", or a stall) and streaming frames
+    // straight into ffmpeg (it crashed mid-render). Plain screenshots to
+    // disk, then one encode — the path every measured render took.
+    PRODUCER_EXPERIMENTAL_FAST_CAPTURE: "false",
+    PRODUCER_ENABLE_STREAMING_ENCODE: "false",
   }
   return new Promise<void>((done, fail) => {
     const child = spawn(
       process.execPath,
-      [hyperframesBin(), "render", "--workers", workers, "--output", outputPath],
+      [
+        hyperframesBin(),
+        "render",
+        "--workers",
+        workers,
+        "--no-browser-gpu",
+        "--output",
+        outputPath,
+      ],
       { cwd: projectDir, env, stdio: ["ignore", "pipe", "pipe"] }
     )
     // Our own parent stops us with a signal; take the CLI (and Chrome) down too.

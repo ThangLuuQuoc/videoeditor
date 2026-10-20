@@ -295,3 +295,63 @@ describe("recipe pictures", () => {
     expect(presentationSchema.safeParse(removed).success).toBe(true)
   })
 })
+
+describe("recipe read aloud", () => {
+  const voiced = recipe.steps.map((step, index) => ({
+    id: `line-${index}`,
+    text: step.text,
+    durationMs: 1500 + index * 500,
+    audioKey: `voice/${index}.wav`,
+  }))
+
+  it("voices each step on its card, which lasts as long as the line", () => {
+    const result = applyRecipe(
+      { ...recipe, voiced: true },
+      { ...clip(), voiced }
+    )
+    if (!result.ok) throw new Error(result.reason)
+    const { presentation } = result.motion
+    const lines = presentation.voice!.lines
+    expect(lines.map((line) => line.audioKey)).toEqual([
+      "voice/0.wav",
+      "voice/1.wav",
+      "voice/2.wav",
+    ])
+    const times = adTimes(presentation)
+    lines.forEach((line, index) => {
+      const card = times.find((g) => g.id === `tpl-step-${index + 1}`)!
+      expect(line.atMs).toBe(card.start + recipeTiming.voiceLeadMs)
+      expect(card.end - card.start).toBe(
+        line.durationMs + recipeTiming.voiceLeadMs + recipeTiming.voiceTailMs
+      )
+    })
+    // The card shows the words, so no captions; the recipe remembers.
+    expect(presentation.voice!.captions).toBe(false)
+    expect(presentation.recipe!.voiced).toBe(true)
+    expect(presentationSchema.safeParse(presentation).success).toBe(true)
+  })
+
+  it("drops its own old narration when built again without a voice", () => {
+    const once = applyRecipe({ ...recipe, voiced: true }, { ...clip(), voiced })
+    if (!once.ok) throw new Error(once.reason)
+    const again = built(clip(once.motion.presentation))
+    expect(again.voice).toBeNull()
+    expect(again.recipe!.voiced).toBe(false)
+  })
+
+  it("keeps a voiceover the cook made themselves", () => {
+    const own = {
+      script: "Hello",
+      language: "en" as const,
+      lines: [
+        { id: "l", text: "Hello", atMs: 400, durationMs: 900, audioKey: "k" },
+      ],
+      captions: true,
+      captionStyle: "bold" as const,
+      volume: 1,
+    }
+    expect(built(clip({ ...defaultPresentation, voice: own })).voice).toEqual(
+      own
+    )
+  })
+})

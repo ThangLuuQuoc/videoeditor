@@ -16,7 +16,7 @@
 | M8 Template & AI first cut | ✅ cấp clip + cấp video, có hoàn tác; test unit/DB/Playwright |
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
 | M10, M11 | chưa bắt đầu |
-| M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); **ảnh (1b) ✅** với provider `test`; timeline, data, làm đẹp chưa làm |
+| M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); **ảnh (1b) ✅** với provider `test`; **đọc các bước + công thức cho cả video (1c) ✅**; timeline, data, làm đẹp chưa làm |
 
 Chi tiết từng hạng mục: `README.md` mục 2.
 
@@ -176,7 +176,7 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 - `features/footage/lib/genres/recipe.ts`: `applyRecipe` chia thời lượng video: slide mở đầu → thẻ nguyên liệu → các bước chia đều → end card 3 giây; báo lỗi khi clip quá ngắn so với số bước.
 - Tab Templates có mục "By genre" → form công thức → "Build recipe video".
 - Mỗi nguyên liệu và mỗi bước có chỗ cho **một ảnh tùy chọn** (khóa S3); thẻ nguyên liệu hiện ảnh nếu có.
-- Để sau: áp cho cả video nhiều clip, lấy các bước làm lời đọc (giọng đọc M9, mỗi bước dài đúng bằng câu đọc), AI tách công thức, đồng hồ đếm ngược.
+- ~~Áp cho cả video nhiều clip, lấy các bước làm lời đọc (mỗi bước dài đúng bằng câu đọc)~~ ✅ 20/10 (bước 1c). Còn để sau: AI tách công thức, đồng hồ đếm ngược, quản lý ảnh ở cấp video.
 
 **Bước 1b — Ảnh cho công thức (chủ dự án đề xuất 19/10; ✅ 20/10 với `IMAGE_PROVIDER=test`, nhà cung cấp thật chờ Q7):** người dùng chuẩn bị nguyên liệu, công thức, các bước; chỗ nào **thiếu ảnh** thì tải lên hoặc **gọi mô hình tạo ảnh**.
 - HyperFrames render được: ảnh là `<img>` trên trang, shim đã có `Img` và chờ ảnh tải (`delayRender`); ảnh không cần seek nên không gặp lỗi frame trống của video. Hiệu ứng Ken Burns làm bằng CSS theo frame.
@@ -234,4 +234,4 @@ Thêm theo milestone:
 3. M6: lấy 2–3 video quay màn hình thật (3–10 phút) để đo và kiểm tra (**cần chủ dự án gửi video**).
 4. ~~M6: thêm khung 4:5.~~ ✅
 5. ~~Thiết kế dữ liệu template cho M8 (zod trong `shared/motion`) và lấy ý kiến chủ dự án về 4 template mẫu.~~ ✅ (M8 xong)
-6. ~~M12 bước 1: template nấu ăn~~ ✅, ~~bước 1b ảnh~~ ✅ (provider `test`; chốt Q7 để bật ảnh thật). Tiếp: áp công thức cho cả video, bước làm lời đọc; rồi timeline → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).
+6. ~~M12 bước 1: template nấu ăn~~ ✅, ~~bước 1b ảnh~~ ✅ (provider `test`; chốt Q7 để bật ảnh thật). ~~áp công thức cho cả video, bước làm lời đọc~~ ✅; tiếp theo là timeline → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).

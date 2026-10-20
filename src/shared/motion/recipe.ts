@@ -35,6 +35,8 @@ export const recipeSchema = z.object({
   steps: z.array(recipeItem(recipeLimits.step)).min(1).max(recipeLimits.steps),
   /** The language of the words the template adds ("Ingredients", "Step 2/5"). */
   language: z.enum(voiceLanguages).default("en"),
+  /** Its steps are read aloud (the voiceover), each as long as its line. */
+  voiced: z.boolean().default(false),
 })
 export type Recipe = z.output<typeof recipeSchema>
 export type RecipeInput = z.input<typeof recipeSchema>

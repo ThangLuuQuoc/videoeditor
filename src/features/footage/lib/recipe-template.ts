@@ -8,37 +8,44 @@ import {
   type Recipe,
   type RecipeTarget,
   type Shot,
+  type Voice,
 } from "@/shared/motion"
 
 import { newGraphic } from "./graphic-templates"
 import { noLens } from "./lens-looks"
+import {
+  layoutRecipe,
+  recipeTiming,
+  type RecipeLayout,
+  type RecipeSlot,
+} from "./recipe-layout"
+
+export { layoutRecipe, recipeTiming, type RecipeSlot } from "./recipe-layout"
 
 /**
- * The recipe template (V3 M12, step 1): a cooking clip and a recipe become
- * a 9:16 video — the dish's title, the ingredients ticking in, each step
- * with its number, and an end card. Unlike the style templates
- * (./templates.ts) it keeps the cook's own camera: footage fills the frame
- * instead of sitting in a screen. Pure, one undo step; what it adds carries
- * the templates' `tpl-` ids, so applying it again replaces it.
+ * The recipe template (V3 M12): a recipe becomes a 9:16 video — the dish's
+ * title, the ingredients ticking in, each step with its number, and an end
+ * card — on one clip or across every clip of a video (./recipe-layout.ts
+ * places them). Unlike the style templates (./templates.ts) it keeps the
+ * cook's own camera: footage fills the frame instead of sitting in a
+ * screen. With a voiceover, each step is read aloud and lasts as long as
+ * its line. Pure, one undo step; what it adds carries the templates'
+ * `tpl-` ids, so applying it again replaces it.
  */
-export const recipeTiming = {
-  introMs: 2600,
-  endMs: 3000,
-  /** The ingredients card: a base plus a little per line, within bounds. */
-  listBaseMs: 1600,
-  listPerLineMs: 500,
-  listMinMs: 2500,
-  listMaxMs: 8000,
-  stepMinMs: 1500,
-  /** A graphic's longest length (graphicItemSchema). */
-  itemMaxMs: 15_000,
-} as const
 
 type Motion = { shots: Record<string, Shot | null>; presentation: Presentation }
 
+/** One step read aloud: its audio (in the clip's folder) and length. */
+export type VoicedStep = {
+  id: string
+  text: string
+  durationMs: number
+  audioKey: string
+}
+
 const prefix = "tpl-"
 
-/** The shortest edited clip that fits this recipe. */
+/** The shortest edited clip that fits this recipe (no voiceover). */
 export function recipeNeedsMs(recipe: Recipe) {
   const t = recipeTiming
   return (
@@ -51,107 +58,124 @@ export function recipeNeedsMs(recipe: Recipe) {
 
 export type RecipeResult =
   | { ok: true; motion: Motion }
-  | { ok: false; reason: "too-short"; needMs: number; haveMs: number }
+  | Exclude<RecipeLayout, { ok: true }>
   | { ok: false; reason: "too-many-graphics"; limit: number }
 
-export function applyRecipe(
+/** One clip's part of a laid-out recipe, on top of its current edit. */
+export function buildRecipeClip(
   recipe: Recipe,
   input: {
     current: Motion
     durationMs: number
     /** The kit's colours, best first; none keeps the clip's background. */
     brandColors: string[]
+    /** This clip's slots (layoutRecipe's, for this clip). */
+    slots: RecipeSlot[]
+    /** Every step read aloud, in order (audio for this clip's steps). */
+    voiced?: VoicedStep[]
+    /** One clip, or one of a video's clips. */
+    scope: "clip" | "video"
   }
 ): RecipeResult {
   const t = recipeTiming
-  const { durationMs } = input
-  const { edit } = input.current.presentation
-  const haveMs = outputDuration(edit, durationMs)
-  const needMs = recipeNeedsMs(recipe)
-  if (haveMs < needMs) return { ok: false, reason: "too-short", needMs, haveMs }
-
-  const kept = input.current.presentation.graphics.filter(
-    (graphic) => !graphic.id.startsWith(prefix)
-  )
-  const count = 2 + (recipe.ingredients.length > 0 ? 1 : 0) + recipe.steps.length
-  if (kept.length + count > graphicLimits.items) {
-    return { ok: false, reason: "too-many-graphics", limit: graphicLimits.items }
-  }
-
+  const { durationMs, slots, voiced } = input
+  const { presentation } = input.current
+  const { edit } = presentation
   const labels = recipeLabels[recipe.language]
   // Ad time → footage time, as every graphic starts in footage time.
   const at = (adMs: number) => Math.round(toSource(edit, durationMs, adMs))
-  const graphics: GraphicItem[] = [...kept]
+  const length = (slot: RecipeSlot) =>
+    Math.max(t.itemMinMs, Math.min(t.itemMaxMs, slot.endMs - slot.startMs))
 
-  graphics.push(
-    newGraphic("slide", {
-      id: `${prefix}intro`,
-      atMs: 0,
-      durationMs: t.introMs,
-      text: recipe.dish,
-      secondary: recipe.meta,
-      track: 2,
-    })
+  const graphics: GraphicItem[] = presentation.graphics.filter(
+    (graphic) => !graphic.id.startsWith(prefix)
   )
-
-  const endStart = haveMs - t.endMs
-  let cursor = t.introMs
-  if (recipe.ingredients.length > 0) {
-    // As long as its lines need, leaving every step its minimum.
-    const room = endStart - cursor - recipe.steps.length * t.stepMinMs
-    const listMs = Math.min(
-      room,
-      Math.max(
-        t.listMinMs,
-        Math.min(
-          t.listMaxMs,
-          t.listBaseMs + recipe.ingredients.length * t.listPerLineMs
+  if (graphics.length + slots.length > graphicLimits.items) {
+    return {
+      ok: false,
+      reason: "too-many-graphics",
+      limit: graphicLimits.items,
+    }
+  }
+  for (const slot of slots) {
+    const base = { atMs: at(slot.startMs), durationMs: length(slot) }
+    switch (slot.kind) {
+      case "intro":
+        graphics.push(
+          newGraphic("slide", {
+            ...base,
+            id: `${prefix}intro`,
+            text: recipe.dish,
+            secondary: recipe.meta,
+            track: 2,
+          })
         )
-      )
-    )
-    graphics.push(
-      newGraphic("list", {
-        id: `${prefix}list`,
-        atMs: at(cursor),
-        durationMs: listMs,
-        text: labels.ingredients,
-        secondary: recipe.ingredients.map((item) => item.text).join("\n"),
-        images: recipe.ingredients.map((item) => item.imageKey),
-        track: 1,
-      })
-    )
-    cursor += listMs
+        break
+      case "list":
+        graphics.push(
+          newGraphic("list", {
+            ...base,
+            id: `${prefix}list`,
+            text: labels.ingredients,
+            secondary: recipe.ingredients.map((item) => item.text).join("\n"),
+            images: recipe.ingredients.map((item) => item.imageKey),
+            track: 1,
+          })
+        )
+        break
+      case "step": {
+        const step = recipe.steps[slot.index]!
+        graphics.push(
+          newGraphic("step", {
+            ...base,
+            id: `${prefix}step-${slot.index + 1}`,
+            text: step.text,
+            secondary: labels.step(slot.index + 1, recipe.steps.length),
+            images: step.imageKey ? [step.imageKey] : [],
+            track: 1,
+          })
+        )
+        break
+      }
+      case "end":
+        graphics.push(
+          newGraphic("end-card", {
+            ...base,
+            id: `${prefix}end`,
+            text: recipe.dish,
+            secondary: labels.cta,
+            track: 2,
+          })
+        )
+        break
+    }
   }
 
-  // The steps share what's left equally.
-  const stepMs = (endStart - cursor) / recipe.steps.length
-  recipe.steps.forEach((step, index) => {
-    const startMs = cursor + index * stepMs
-    graphics.push(
-      newGraphic("step", {
-        id: `${prefix}step-${index + 1}`,
-        atMs: at(startMs),
-        durationMs: Math.min(t.itemMaxMs, Math.round(stepMs)),
-        text: step.text,
-        secondary: labels.step(index + 1, recipe.steps.length),
-        images: step.imageKey ? [step.imageKey] : [],
-        track: 1,
-      })
-    )
-  })
-
-  graphics.push(
-    newGraphic("end-card", {
-      id: `${prefix}end`,
-      atMs: at(endStart),
-      durationMs: t.endMs,
-      text: recipe.dish,
-      secondary: labels.cta,
-      track: 2,
+  // The steps read aloud on this clip; a recipe voiced before and now
+  // without a voice loses that old (no longer timed) narration.
+  let voice: Voice | null = presentation.voice
+  if (voiced) {
+    const lines = slots.flatMap((slot) => {
+      const line = voiced[slot.index]
+      if (slot.kind !== "step" || slot.voiceAtMs === null || !line) return []
+      return [{ ...line, atMs: slot.voiceAtMs }]
     })
-  )
+    voice =
+      lines.length > 0
+        ? {
+            script: recipe.steps.map((step) => step.text).join("\n"),
+            language: recipe.language,
+            lines,
+            // The step card already shows the words.
+            captions: false,
+            captionStyle: presentation.voice?.captionStyle ?? "bold",
+            volume: presentation.voice?.volume ?? 1,
+          }
+        : null
+  } else if (presentation.recipe?.voiced) {
+    voice = null
+  }
 
-  const { presentation } = input.current
   const [from, to] = input.brandColors
   return {
     ok: true,
@@ -173,11 +197,38 @@ export function applyRecipe(
             }
           : {}),
         graphics,
-        template: "recipe",
-        recipe,
+        voice,
+        template: input.scope === "video" ? "recipe-video" : "recipe",
+        recipe: { ...recipe, voiced: Boolean(voiced) },
       },
     },
   }
+}
+
+/** The recipe on one clip (the clip editor's "Build recipe video"). */
+export function applyRecipe(
+  recipe: Recipe,
+  input: {
+    current: Motion
+    durationMs: number
+    brandColors: string[]
+    /** Every step read aloud, in order: steps take their lines' length. */
+    voiced?: VoicedStep[]
+  }
+): RecipeResult {
+  const { edit } = input.current.presentation
+  const haveMs = Math.round(outputDuration(edit, input.durationMs))
+  const layout = layoutRecipe(
+    recipe,
+    [haveMs],
+    input.voiced?.map((line) => line.durationMs)
+  )
+  if (!layout.ok) return layout
+  return buildRecipeClip(recipe, {
+    ...input,
+    slots: layout.slots,
+    scope: "clip",
+  })
 }
 
 /**

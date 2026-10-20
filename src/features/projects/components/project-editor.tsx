@@ -57,10 +57,13 @@ import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
 import {
   appendProjectClip,
+  applyVideoRecipe,
   applyVideoTemplate,
   saveProjectClips,
   undoVideoTemplate,
 } from "../actions"
+import type { Recipe } from "@/shared/motion"
+
 import type { ProjectDetail } from "../queries"
 import { AddClipsDialog, type KitClip } from "./add-clips-dialog"
 import { DeleteProjectButton } from "./delete-project-button"
@@ -93,6 +96,8 @@ export function ProjectEditor({
   kitClips,
   footage,
   readOnly,
+  voiceSetUp = false,
+  voiceIsTest = false,
 }: {
   project: ProjectDetail
   /** The brand kit's clips, for "Choose from footage". */
@@ -100,6 +105,10 @@ export function ProjectEditor({
   /** Recording and uploading into the video. */
   footage: { maxBytes: number; maxDurationSeconds: number; canAdd: boolean }
   readOnly: boolean
+  /** The server has a voice (a recipe's steps can be read aloud). */
+  voiceSetUp?: boolean
+  /** That voice is the development tone. */
+  voiceIsTest?: boolean
 }) {
   const router = useRouter()
   const [entries, setEntries] = useState<Entry[]>(() =>
@@ -169,6 +178,37 @@ export function ProjectEditor({
           : "Undo template puts everything back.",
     })
     return true
+  }
+
+  /** The recipe across every clip (M12): a problem in words, or null. */
+  async function buildRecipe(recipe: Recipe) {
+    // Not over a save in flight (it would make the version stale).
+    if (pending.current > 0 || conflicted.current) {
+      return "Wait for the video to save, then try again."
+    }
+    setTemplateBusy(true)
+    const result = await applyVideoRecipe({
+      projectId: project.id,
+      baseVersion: version.current,
+      recipe,
+    })
+    setTemplateBusy(false)
+    if (!result.ok) {
+      if (result.error.code === "CONFLICT") {
+        conflicted.current = true
+        setConflict("open")
+        return null
+      }
+      return result.error.message
+    }
+    afterTemplate(result.data)
+    const { applied } = result.data
+    toast.add({
+      type: "success",
+      title: `Recipe on ${applied} ${applied === 1 ? "clip" : "clips"}`,
+      description: `${recipe.dish}${recipe.voiced ? ", read aloud" : ""}. Undo template puts everything back.`,
+    })
+    return null
   }
 
   async function undoTemplate() {
@@ -446,7 +486,15 @@ export function ProjectEditor({
             <VideoTemplateDialog
               current={project.template}
               busy={templateBusy}
+              recipe={
+                project.clips[0]?.presentation.template === "recipe-video"
+                  ? project.clips[0].presentation.recipe
+                  : null
+              }
+              voiceSetUp={voiceSetUp}
+              voiceIsTest={voiceIsTest}
               onApply={applyTemplate}
+              onBuildRecipe={buildRecipe}
               onUndo={() => void undoTemplate()}
             />
             <DeleteProjectButton projectId={project.id} name={project.name} />

@@ -35,7 +35,8 @@ import {
 } from "./lib/recipe-pictures"
 import { suggestGraphic, type GraphicSuggestion } from "./lib/suggest-graphic"
 import { writeVoiceScript as writeScript } from "./lib/voice-script"
-import { voiceLines } from "./lib/voiceover"
+import type { VoicedStep } from "./lib/recipe-template"
+import { voiceLines, voiceSteps } from "./lib/voiceover"
 import { clipMediaUrls, getFootage } from "./queries"
 import {
   addMarkerSchema,
@@ -44,6 +45,7 @@ import {
   footageIdSchema,
   makeRecipePictureSchema,
   makeVoiceoverSchema,
+  voiceRecipeStepsSchema,
   moveMarkerSchema,
   requestUploadSchema,
   suggestGraphicSchema,
@@ -647,6 +649,46 @@ export async function makeRecipePicture(
         dish: parsed.data.dish,
         kind: parsed.data.kind,
         text: parsed.data.text,
+      })
+    )
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/**
+ * A recipe's steps read aloud (V3 M12): one line per step, stored in the
+ * clip's folder. The editor's recipe template times each step by its line.
+ */
+export async function voiceRecipeSteps(
+  input: unknown
+): Promise<Result<{ steps: VoicedStep[]; urls: Record<string, string> }>> {
+  try {
+    const parsed = voiceRecipeStepsSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the steps.")
+    if (!voiceEnabled()) throw voiceOff()
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const clip = await getFootage(workspace.id, parsed.data.footageId)
+    if (!clip || clip.status !== "READY") {
+      throw new AppError("NOT_FOUND", "That clip isn’t ready yet.")
+    }
+    // Each step is a paid text-to-speech call.
+    for (const _step of parsed.data.steps) {
+      await consumeRateLimit({
+        key: `voice-lines:${workspace.id}`,
+        limit: aiLimits.voiceLinesPerDay,
+        windowSeconds: 24 * 60 * 60,
+        message: `You’ve voiced ${aiLimits.voiceLinesPerDay} lines today. Try again tomorrow.`,
+      })
+    }
+    return ok(
+      await voiceSteps({
+        workspaceId: workspace.id,
+        kitId: clip.brandKitId,
+        footageId: clip.id,
+        steps: parsed.data.steps,
+        language: parsed.data.language,
       })
     )
   } catch (error) {

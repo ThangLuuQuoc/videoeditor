@@ -1,7 +1,11 @@
 import { z } from "zod"
 
 import { templateIds } from "@/features/footage/client"
-import { projectClipSchema, projectLimits } from "@/shared/motion"
+import {
+  projectClipSchema,
+  projectLimits,
+  recipeSchema,
+} from "@/shared/motion"
 
 const idSchema = z.string().min(1).max(64)
 
@@ -55,6 +59,13 @@ export const applyVideoTemplateSchema = z.object({
   baseVersion: z.number().int().min(0),
   templateId: z.enum(templateIds, "Pick a template."),
   withAi: z.boolean(),
+})
+
+/** The recipe template across every clip of a video (V3 M12). */
+export const applyVideoRecipeSchema = z.object({
+  projectId: idSchema,
+  baseVersion: z.number().int().min(0),
+  recipe: recipeSchema,
 })
 
 /** Undo the video's last template, from the version it was seen at. */

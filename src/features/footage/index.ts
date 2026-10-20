@@ -29,6 +29,19 @@ export {
   type TemplateId,
 } from "./lib/templates"
 export {
+  buildRecipeClip,
+  layoutRecipe,
+  type RecipeSlot,
+  type VoicedStep,
+} from "./lib/recipe-template"
+export { recipeFailure } from "./lib/recipe-messages"
+export {
+  speakLines,
+  storeVoicedLine,
+  voiceLinks,
+  type SpokenLine,
+} from "./lib/voiceover"
+export {
   templatedMotion,
   type TemplateBrand,
   type TemplatedClip,

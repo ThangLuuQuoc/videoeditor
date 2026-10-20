@@ -80,6 +80,7 @@ import {
   makeRecipePicture,
   makeVoiceover,
   uploadRecipePicture,
+  voiceRecipeSteps,
   writeVoiceScript,
   freshFootageLinks,
   moveFootageMarker,
@@ -110,7 +111,12 @@ import {
   type TemplateId,
 } from "../lib/templates"
 import { parseStoredInsight } from "../lib/insight"
-import { applyRecipe, setRecipePicture } from "../lib/recipe-template"
+import { recipeFailure } from "../lib/recipe-messages"
+import {
+  applyRecipe,
+  setRecipePicture,
+  type VoicedStep,
+} from "../lib/recipe-template"
 import { parseStoredShot } from "../lib/motion"
 import { stageFontsFor } from "../lib/stage-fonts"
 import { parseStoredRecording } from "../lib/recording"
@@ -1304,21 +1310,36 @@ export function FootageEditor({
     })
   }
 
-  /** The recipe template (M12): one undo step; a problem in words, or null. */
-  function buildRecipe(recipe: Recipe) {
+  // Voices and pictures arrive after a wait: build on the edit as it is then.
+  const latestHistory = useRef(history)
+  useEffect(() => {
+    latestHistory.current = history
+  }, [history])
+
+  /**
+   * The recipe template (M12): one undo step; a problem in words, or null.
+   * Read aloud, the steps are voiced first and each lasts as long as its
+   * line.
+   */
+  async function buildRecipe(recipe: Recipe) {
+    let voiced: VoicedStep[] | undefined
+    if (recipe.voiced) {
+      const result = await voiceRecipeSteps({
+        footageId: clip.id,
+        language: recipe.language,
+        steps: recipe.steps.map((step) => step.text),
+      })
+      if (!result.ok) return result.error.message
+      setVoiceUrls((urls) => ({ ...urls, ...result.data.urls }))
+      voiced = result.data.steps
+    }
     const result = applyRecipe(recipe, {
-      current: history.present,
+      current: latestHistory.current.present,
       durationMs,
       brandColors,
+      voiced,
     })
-    const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`
-    if (!result.ok) {
-      return result.reason === "too-short"
-        ? `This clip runs ${seconds(result.haveMs)}; ${recipe.steps.length} ${
-            recipe.steps.length === 1 ? "step needs" : "steps need"
-          } at least ${seconds(result.needMs)}. Remove a step or use a longer clip.`
-        : `A clip holds up to ${result.limit} graphics: remove a few first.`
-    }
+    if (!result.ok) return recipeFailure(result, recipe, "clip")
     change(result.motion, `template:recipe:${Math.random()}`)
     setAspect("9:16")
     stop()
@@ -1326,16 +1347,10 @@ export function FootageEditor({
     toast.add({
       type: "success",
       title: "Recipe video built",
-      description: `${recipe.dish}. ${undoKey} undoes it.`,
+      description: `${recipe.dish}${voiced ? ", read aloud" : ""}. ${undoKey} undoes it.`,
     })
     return null
   }
-
-  // Pictures arrive after a wait: build on the edit as it is then.
-  const latestHistory = useRef(history)
-  useEffect(() => {
-    latestHistory.current = history
-  }, [history])
 
   /** Puts pictures on the recipe and its graphics: one undo step. */
   function applyPictures(
@@ -1368,9 +1383,7 @@ export function FootageEditor({
   async function makePictures(targets: RecipeTarget[]) {
     const recipe = latestHistory.current.present.presentation.recipe
     if (!recipe || targets.length === 0) return
-    setPictureBusy(
-      targets.length === 1 ? pictureTargetId(targets[0]!) : "all"
-    )
+    setPictureBusy(targets.length === 1 ? pictureTargetId(targets[0]!) : "all")
     const made: { target: RecipeTarget; key: string }[] = []
     for (const target of targets) {
       const items =
@@ -1398,7 +1411,8 @@ export function FootageEditor({
     applyPictures(made)
     toast.add({
       type: "success",
-      title: made.length === 1 ? "Picture made" : `${made.length} pictures made`,
+      title:
+        made.length === 1 ? "Picture made" : `${made.length} pictures made`,
       description: `${undoKey} undoes it.`,
     })
   }
@@ -1886,6 +1900,8 @@ export function FootageEditor({
                   hasMoments={markers.length > 0}
                   isDirecting={isDirecting}
                   recipe={presentation.recipe}
+                  voiceSetUp={voiceSetUp}
+                  voiceIsTest={voiceIsTest}
                   onApply={applyTemplateById}
                   onFirstCut={firstCut}
                   onBuildRecipe={buildRecipe}
@@ -1896,7 +1912,8 @@ export function FootageEditor({
                     busy: pictureBusy,
                     onUpload: uploadPicture,
                     onMake: makePictures,
-                    onRemove: (target) => applyPictures([{ target, key: null }]),
+                    onRemove: (target) =>
+                      applyPictures([{ target, key: null }]),
                   }}
                 />
               </TabsContent>

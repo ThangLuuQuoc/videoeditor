@@ -234,3 +234,102 @@ test("a recipe becomes a titled, step-by-step video in one undo step", async ({
   ).toHaveCount(4)
   expect(consoleProblems).toEqual([])
 })
+
+test("a recipe read aloud: a voiceover line for each step", async ({
+  page,
+  signedInUser: _user,
+  consoleProblems,
+}) => {
+  test.skip(!hasStorage, "Needs a bucket (NEON_BRANCH or STORAGE_TESTS)")
+  test.setTimeout(150_000)
+  const video = await makeTestVideo(16)
+  await createKitByHand(page)
+  await page.getByRole("tab", { name: "Footage" }).click()
+  await page.getByTestId("footage-file").setInputFiles(video)
+  const card = page.getByRole("listitem").filter({ hasText: "Product demo" })
+  await expect(card.getByText("Ready")).toBeVisible({ timeout: 90_000 })
+  await card.getByRole("link", { name: "Product demo" }).click()
+  const tools = page.getByRole("tablist", { name: "Editor tools" })
+
+  await tools.getByRole("tab", { name: "Templates" }).click()
+  const form = page.getByRole("form", { name: "Recipe" })
+  await form.getByRole("textbox", { name: "Dish" }).fill("Garlic noodles")
+  await form
+    .getByRole("textbox", { name: "Steps" })
+    .fill("Boil the noodles\nToss with garlic butter")
+  await form.getByRole("switch", { name: "Read the steps aloud" }).click()
+  await expect(form.getByText("Each lasts as long as it takes to say.")).toBeVisible()
+  await form.getByRole("button", { name: "Build recipe video" }).click()
+  await expect(page.getByText("Recipe video built")).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect(page.getByText(/Garlic noodles, read aloud/)).toBeVisible()
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+
+  // One line per step, in the Voice tool.
+  await tools.getByRole("tab", { name: "Voice" }).click()
+  const lines = page.getByRole("list", { name: "Voiceover lines" })
+  await expect(lines.getByRole("listitem")).toHaveCount(2)
+  await expect(lines).toContainText("Toss with garlic butter")
+  expect(consoleProblems).toEqual([])
+})
+
+test("a recipe across a video's clips, read aloud, undone in one step", async ({
+  page,
+  signedInUser: _user,
+  consoleProblems,
+}) => {
+  test.skip(!hasStorage, "Needs a bucket (NEON_BRANCH or STORAGE_TESTS)")
+  test.setTimeout(240_000)
+  const first = await makeTestVideo(10, "Prep")
+  const second = await makeTestVideo(10, "Cooking")
+  await createKitByHand(page)
+  await page.getByRole("tab", { name: "Footage" }).click()
+  for (const file of [first, second]) {
+    await page.getByTestId("footage-file").setInputFiles(file)
+    await expect(page.getByText("Clip uploaded")).toBeVisible({
+      timeout: 30_000,
+    })
+  }
+  for (const name of ["Prep", "Cooking"]) {
+    await expect(
+      page.getByRole("listitem").filter({ hasText: name }).getByText("Ready")
+    ).toBeVisible({ timeout: 90_000 })
+  }
+  await page.goto("/videos")
+  await page.getByRole("button", { name: "New video" }).click()
+  await page.getByRole("textbox", { name: "Name" }).fill("Noodles")
+  await page.getByRole("button", { name: "Create video" }).click()
+  await expect(page).toHaveURL(/\/videos\/[^/]+$/, { timeout: 20_000 })
+  await page.getByRole("button", { name: "Choose from footage" }).click()
+  const picker = page.getByRole("list", { name: "Footage to add" })
+  await picker.getByRole("button", { name: /Prep/ }).click()
+  await picker.getByRole("button", { name: /Cooking/ }).click()
+  await page.getByRole("button", { name: "Add 2 clips" }).click()
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+
+  await page.getByRole("button", { name: "Template" }).click()
+  const dialog = page.getByRole("dialog", { name: "Template for every clip" })
+  await dialog.getByRole("button", { name: "Recipe" }).click()
+  const form = dialog.getByRole("form", { name: "Recipe" })
+  await form.getByRole("textbox", { name: "Dish" }).fill("Garlic noodles")
+  await form.getByRole("textbox", { name: "Ingredients" }).fill("200 g noodles")
+  await form
+    .getByRole("textbox", { name: "Steps" })
+    .fill("Boil the noodles\nMelt the butter\nToss and serve")
+  await form.getByRole("switch", { name: "Read the steps aloud" }).click()
+  await expectNoViolations(page)
+  await form.getByRole("button", { name: "Build recipe video" }).click()
+  await expect(page.getByText("Recipe on 2 clips")).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(dialog).toBeHidden()
+
+  // Undone in one step, like any template.
+  await page.getByRole("button", { name: "Undo template" }).click()
+  await expect(page.getByText("Template undone")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Undo template" })).toHaveCount(
+    0
+  )
+  expect(consoleProblems).toEqual([])
+})

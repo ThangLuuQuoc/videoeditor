@@ -157,3 +157,13 @@ export const makeRecipePictureSchema = z.object({
   kind: z.enum(["ingredient", "step"]),
   text: z.string().trim().min(1).max(recipeLimits.step),
 })
+
+/** A recipe's steps read aloud for one clip (V3 M12). */
+export const voiceRecipeStepsSchema = z.object({
+  footageId: idSchema,
+  language: z.enum(voiceLanguages),
+  steps: z
+    .array(z.string().trim().min(1).max(recipeLimits.step))
+    .min(1, "Add at least one step.")
+    .max(recipeLimits.steps),
+})

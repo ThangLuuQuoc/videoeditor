@@ -1,7 +1,7 @@
 "use client"
 
 import { CheckIcon, ChefHatIcon } from "lucide-react"
-import { useId, useState } from "react"
+import { useId, useState, useTransition } from "react"
 
 import {
   recipeLimits,
@@ -12,8 +12,15 @@ import {
   type VoiceLanguage,
 } from "@/shared/motion"
 import { Button } from "@/shared/ui/button"
-import { Field, FieldDescription, FieldLabel } from "@/shared/ui/field"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
+import { Spinner } from "@/shared/ui/spinner"
+import { Switch } from "@/shared/ui/switch"
 import { Textarea } from "@/shared/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
@@ -48,19 +55,30 @@ export function recipeProblem(input: {
 
 /**
  * The recipe template's form (V3 M12): the dish, its ingredients and its
- * steps, one per line. Building replaces what the template made before.
+ * steps, one per line, and whether the steps are read aloud. Building
+ * replaces what the template made before. Used for one clip and for a
+ * whole video.
  */
 export function RecipeForm({
   recipe,
   active,
   disabled,
+  voiceSetUp,
+  voiceIsTest = false,
+  across = "clip",
   onBuild,
 }: {
   recipe: Recipe | null
   active: boolean
   disabled: boolean
+  /** The server has a voice (VOICE_PROVIDER): offer reading the steps. */
+  voiceSetUp: boolean
+  /** That voice is the development tone. */
+  voiceIsTest?: boolean
+  /** What it builds on: this clip, or every clip of a video. */
+  across?: "clip" | "video"
   /** Returns a problem to show (e.g. the clip is too short), or null. */
-  onBuild: (recipe: Recipe) => string | null
+  onBuild: (recipe: Recipe) => Promise<string | null>
 }) {
   const id = useId()
   const [dish, setDish] = useState(recipe?.dish ?? "")
@@ -74,7 +92,9 @@ export function RecipeForm({
   const [language, setLanguage] = useState<VoiceLanguage>(
     recipe?.language ?? "en"
   )
+  const [voiced, setVoiced] = useState(voiceSetUp && (recipe?.voiced ?? false))
   const [problem, setProblem] = useState<string | null>(null)
+  const [isBuilding, startBuild] = useTransition()
 
   function build(event: React.FormEvent) {
     event.preventDefault()
@@ -89,15 +109,19 @@ export function RecipeForm({
       setProblem(typed)
       return
     }
-    setProblem(
-      onBuild({
-        dish: dish.trim(),
-        meta: meta.trim(),
-        ingredients: withImages(ingredientLines, recipe?.ingredients ?? []),
-        steps: withImages(stepLines, recipe?.steps ?? []),
-        language,
-      })
-    )
+    setProblem(null)
+    startBuild(async () => {
+      setProblem(
+        await onBuild({
+          dish: dish.trim(),
+          meta: meta.trim(),
+          ingredients: withImages(ingredientLines, recipe?.ingredients ?? []),
+          steps: withImages(stepLines, recipe?.steps ?? []),
+          language,
+          voiced,
+        })
+      )
+    })
   }
 
   return (
@@ -166,8 +190,12 @@ export function RecipeForm({
           onChange={(event) => setSteps(event.target.value)}
         />
         <FieldDescription>
-          One per line, in order, up to {recipeLimits.steps}. They share the
-          clip&apos;s time equally.
+          One per line, in order, up to {recipeLimits.steps}.{" "}
+          {voiced
+            ? "Each lasts as long as it takes to say."
+            : across === "video"
+              ? "They share the video's time equally."
+              : "They share the clip's time equally."}
         </FieldDescription>
       </Field>
       <Field>
@@ -196,6 +224,25 @@ export function RecipeForm({
         </ToggleGroup>
       </Field>
 
+      {voiceSetUp && (
+        <Field orientation="horizontal">
+          <Switch
+            id={`${id}-voiced`}
+            checked={voiced}
+            onCheckedChange={setVoiced}
+          />
+          <FieldContent>
+            <FieldLabel htmlFor={`${id}-voiced`}>
+              Read the steps aloud
+            </FieldLabel>
+            <FieldDescription>
+              A voiceover line per step, in the language above.
+              {voiceIsTest && " Test mode: a tone stands in for the voice."}
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+      )}
+
       {problem && (
         <p role="alert" className="text-sm text-destructive">
           {problem}
@@ -205,9 +252,11 @@ export function RecipeForm({
         type="submit"
         size="sm"
         variant={active ? "secondary" : "default"}
-        disabled={disabled}
+        disabled={disabled || isBuilding}
       >
-        {active ? (
+        {isBuilding ? (
+          <Spinner data-icon="inline-start" />
+        ) : active ? (
           <CheckIcon data-icon="inline-start" />
         ) : (
           <ChefHatIcon data-icon="inline-start" />

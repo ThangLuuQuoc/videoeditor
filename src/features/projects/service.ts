@@ -1,14 +1,24 @@
 import "server-only"
 
-import type { LanguageModel } from "ai"
+import type { LanguageModel, SpeechModel } from "ai"
 
 import { getBrandKit } from "@/features/brand-kits"
 import {
+  buildRecipeClip,
+  getFootage,
+  layoutRecipe,
+  parseStoredShot,
+  presentationFor,
+  recipeFailure,
+  speakLines,
+  storeVoicedLine,
   templateById,
   templatedMotion,
   templateTransition,
   type TemplatedClip,
+  type VoicedStep,
 } from "@/features/footage"
+import { voiceEnabled } from "@/shared/ai"
 import { aiLimits } from "@/shared/config/limits"
 import { db, Prisma } from "@/shared/db"
 import { AppError } from "@/shared/lib/errors"
@@ -16,8 +26,12 @@ import { consumeRateLimit } from "@/shared/rate-limit"
 import { workspaceFileKey } from "@/shared/storage"
 import {
   defaultClipTransition,
+  outputDuration,
   projectLimits,
   transitionSchema,
+  type Presentation,
+  type Recipe,
+  type Shot,
   type ProjectClipInput,
   type Transition,
 } from "@/shared/motion"
@@ -333,6 +347,212 @@ export async function applyTemplateToVideo(
         transitions,
         applied: results.length,
         skipped: footageIds.length - results.length,
+      }
+    },
+    // Neon is a network hop away; a video can have many clips.
+    { timeout: 30_000, maxWait: 10_000 }
+  )
+}
+
+type Motion = { shots: Record<string, Shot | null>; presentation: Presentation }
+
+/**
+ * The recipe template across every clip of a video, as one change (V3
+ * M12): the title and checklist on the first clip, the steps in order
+ * through the clips, the end card on the last. Read aloud, each step's
+ * line is voiced once, stored in the clip its step lands on, and times the
+ * step. Undone with "Undo template", like a style template. Every clip
+ * must be processed and appear once.
+ */
+export async function applyRecipeToVideo(
+  workspaceId: string,
+  input: { projectId: string; baseVersion: number; recipe: Recipe },
+  options: { speech?: SpeechModel } = {}
+) {
+  const { recipe } = input
+  const project = await db.project.findFirst({
+    where: { id: input.projectId, workspaceId },
+    select: {
+      version: true,
+      brandKitId: true,
+      clips: {
+        orderBy: { position: "asc" },
+        select: { id: true, footageId: true, transition: true },
+      },
+    },
+  })
+  if (!project) throw projectNotFound()
+  if (project.version !== input.baseVersion) throw videoChanged()
+  const kit = await getBrandKit(workspaceId, project.brandKitId)
+  if (!kit) throw projectNotFound()
+  if (project.clips.length === 0) {
+    throw new AppError("VALIDATION", "Add a clip to the video first.")
+  }
+  const footageIds = project.clips.map((clip) => clip.footageId)
+  if (new Set(footageIds).size !== footageIds.length) {
+    throw new AppError(
+      "VALIDATION",
+      "A clip appears twice in this video; a recipe needs each clip once."
+    )
+  }
+
+  const clips: {
+    footageId: string
+    baseVersion: number
+    durationMs: number
+    before: Motion
+  }[] = []
+  for (const footageId of footageIds) {
+    const clip = await getFootage(workspaceId, footageId)
+    if (!clip || clip.status !== "READY" || !clip.durationMs) {
+      throw new AppError(
+        "VALIDATION",
+        "Wait until every clip is processed, then build the recipe."
+      )
+    }
+    clips.push({
+      footageId,
+      baseVersion: clip.presentationVersion,
+      durationMs: clip.durationMs,
+      before: {
+        presentation: presentationFor(clip.presentation, kit.colors),
+        shots: Object.fromEntries(
+          clip.markers.map((marker) => [
+            marker.id,
+            parseStoredShot(marker.shot),
+          ])
+        ),
+      },
+    })
+  }
+  const lengths = clips.map((clip) =>
+    Math.round(outputDuration(clip.before.presentation.edit, clip.durationMs))
+  )
+
+  // Read aloud: every step voiced once (paid per line) and measured.
+  let spoken: Awaited<ReturnType<typeof speakLines>> | undefined
+  if (recipe.voiced) {
+    if (!voiceEnabled() && !options.speech) {
+      throw new AppError(
+        "PROVIDER_FAILED",
+        "Voiceover isn’t set up on this server."
+      )
+    }
+    for (const _step of recipe.steps) {
+      await consumeRateLimit({
+        key: `voice-lines:${workspaceId}`,
+        limit: aiLimits.voiceLinesPerDay,
+        windowSeconds: 24 * 60 * 60,
+        message: `You’ve voiced ${aiLimits.voiceLinesPerDay} lines today. Try again tomorrow.`,
+      })
+    }
+    spoken = await speakLines({
+      texts: recipe.steps.map((step) => step.text),
+      language: recipe.language,
+      model: options.speech,
+    })
+  }
+  const layout = layoutRecipe(
+    recipe,
+    lengths,
+    spoken?.map((line) => line.durationMs)
+  )
+  if (!layout.ok) {
+    throw new AppError("VALIDATION", recipeFailure(layout, recipe, "video"))
+  }
+
+  const brandColors = [
+    kit.colors.primary,
+    kit.colors.secondary,
+    kit.colors.accent,
+  ].filter((color): color is string => Boolean(color))
+  const results: TemplatedClip[] = []
+  for (const [index, clip] of clips.entries()) {
+    const slots = layout.slots.filter((slot) => slot.clip === index)
+    // Each voiced step's audio goes in the folder of the clip it plays on.
+    let voiced: VoicedStep[] | undefined
+    if (spoken) {
+      voiced = []
+      for (const slot of slots) {
+        const line = spoken[slot.index]
+        if (slot.kind !== "step" || !line) continue
+        voiced[slot.index] = {
+          id: line.id,
+          text: line.text,
+          durationMs: line.durationMs,
+          audioKey: await storeVoicedLine(line, {
+            workspaceId,
+            kitId: project.brandKitId,
+            footageId: clip.footageId,
+          }),
+        }
+      }
+    }
+    const built = buildRecipeClip(recipe, {
+      current: clip.before,
+      durationMs: clip.durationMs,
+      brandColors,
+      slots,
+      voiced,
+      scope: "video",
+    })
+    if (!built.ok) {
+      throw new AppError("VALIDATION", recipeFailure(built, recipe, "video"))
+    }
+    results.push({
+      footageId: clip.footageId,
+      baseVersion: clip.baseVersion,
+      before: clip.before,
+      after: built.motion,
+    })
+  }
+
+  const undo: TemplateUndo = {
+    templateId: "recipe",
+    withAi: false,
+    appliedVersion: input.baseVersion + 1,
+    clips: results.map((result) => ({
+      footageId: result.footageId,
+      versionAfter: result.baseVersion + 1,
+      presentation: result.before.presentation,
+      shots: result.before.shots,
+    })),
+    transitions: project.clips.map((clip) => ({
+      clipId: clip.id,
+      transition: storedTransition(clip.transition),
+    })),
+  }
+  return db.$transaction(
+    async (tx) => {
+      const { count } = await tx.project.updateMany({
+        where: { id: input.projectId, workspaceId, version: input.baseVersion },
+        data: {
+          version: { increment: 1 },
+          templateUndo: undo as Prisma.InputJsonValue,
+        },
+      })
+      if (count === 0) throw videoChanged()
+      for (const result of results) {
+        const saved = await tx.footage.updateMany({
+          where: {
+            id: result.footageId,
+            workspaceId,
+            presentationVersion: result.baseVersion,
+          },
+          data: {
+            presentation: result.after.presentation as Prisma.InputJsonValue,
+            presentationVersion: { increment: 1 },
+          },
+        })
+        if (saved.count === 0) throw videoChanged()
+      }
+      return {
+        version: input.baseVersion + 1,
+        transitions: project.clips.map((clip) =>
+          storedTransition(clip.transition)
+        ),
+        applied: results.length,
+        skipped: 0,
       }
     },
     // Neon is a network hop away; a video can have many clips.

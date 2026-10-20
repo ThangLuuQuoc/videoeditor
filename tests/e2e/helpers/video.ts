@@ -8,11 +8,12 @@ import ffmpegPath from "ffmpeg-static"
 
 /**
  * A short MP4 with a hard cut at 2s, made with the bundled ffmpeg; 5s long
- * unless `seconds` asks for more (the recipe template needs room).
+ * unless `seconds` asks for more (the recipe template needs room). Its
+ * name becomes the clip's.
  */
-export async function makeTestVideo(seconds = 5) {
+export async function makeTestVideo(seconds = 5, name = "Product demo") {
   const dir = await mkdtemp(join(tmpdir(), "reelpilot-e2e-"))
-  const file = join(dir, "Product demo.mp4")
+  const file = join(dir, `${name}.mp4`)
   await promisify(execFile)(ffmpegPath ?? "ffmpeg", [
     "-hide_banner",
     "-y",
