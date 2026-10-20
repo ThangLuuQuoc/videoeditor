@@ -36,3 +36,21 @@ export async function makeTestVideo(seconds = 5) {
   ])
   return file
 }
+
+/** A small solid-colour PNG, as a photo someone would upload. */
+export async function makeTestPicture(name = "garlic.png") {
+  const dir = await mkdtemp(join(tmpdir(), "reelpilot-e2e-"))
+  const file = join(dir, name)
+  await promisify(execFile)(ffmpegPath ?? "ffmpeg", [
+    "-hide_banner",
+    "-y",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=0x22aa55:s=320x320",
+    "-frames:v",
+    "1",
+    file,
+  ])
+  return file
+}

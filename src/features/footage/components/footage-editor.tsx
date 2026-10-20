@@ -59,6 +59,7 @@ import {
   isScreenGraphic,
   type GraphicItem,
   type Recipe,
+  type RecipeTarget,
   type VoiceLanguage,
 } from "@/shared/motion"
 import type { StageFonts } from "@/remotion/components/TextLayer"
@@ -76,7 +77,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import {
   addFootageMarker,
   directFootageEdit,
+  makeRecipePicture,
   makeVoiceover,
+  uploadRecipePicture,
   writeVoiceScript,
   freshFootageLinks,
   moveFootageMarker,
@@ -107,7 +110,7 @@ import {
   type TemplateId,
 } from "../lib/templates"
 import { parseStoredInsight } from "../lib/insight"
-import { applyRecipe } from "../lib/recipe-template"
+import { applyRecipe, setRecipePicture } from "../lib/recipe-template"
 import { parseStoredShot } from "../lib/motion"
 import { stageFontsFor } from "../lib/stage-fonts"
 import { parseStoredRecording } from "../lib/recording"
@@ -150,6 +153,7 @@ import {
   textSwatches,
 } from "./editor-panels"
 import { MomentsPanel } from "./moments-panel"
+import { pictureTargetId } from "./recipe-pictures"
 import { TemplatesPanel } from "./templates-panel"
 import { VoicePanel } from "./voice-panel"
 import { MotionStage, stageAspects, type StageAspect } from "./motion-stage"
@@ -307,6 +311,9 @@ export function FootageEditor({
   voiceUrls: initialVoiceUrls = {},
   voiceSetUp = false,
   voiceIsTest = false,
+  pictureUrls: initialPictureUrls = {},
+  picturesSetUp = false,
+  picturesAreTest = false,
 }: {
   clip: FootageDetail
   videoUrl: string
@@ -341,6 +348,12 @@ export function FootageEditor({
   voiceSetUp?: boolean
   /** The development tone stands in for a voice. */
   voiceIsTest?: boolean
+  /** Signed links for the recipe's pictures, by storage key. */
+  pictureUrls?: Record<string, string>
+  /** Whether the server has an image provider (IMAGE_PROVIDER). */
+  picturesSetUp?: boolean
+  /** The development placeholder stands in for pictures. */
+  picturesAreTest?: boolean
 }) {
   const playerRef = useRef<StagePlayerRef>(null)
   const [links, renewLinks] = useStableLinks(clip.id, {
@@ -355,6 +368,9 @@ export function FootageEditor({
   const [isAdding, startAdd] = useTransition()
   const [isDirecting, startDirect] = useTransition()
   const [voiceUrls, setVoiceUrls] = useState(initialVoiceUrls)
+  const [pictureUrls, setPictureUrls] = useState(initialPictureUrls)
+  // The picture being made or uploaded ("all" while making the missing).
+  const [pictureBusy, setPictureBusy] = useState<string | null>(null)
   const [isWritingScript, setWritingScript] = useState(false)
   const [isVoicing, setVoicing] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -1315,6 +1331,78 @@ export function FootageEditor({
     return null
   }
 
+  // Pictures arrive after a wait: build on the edit as it is then.
+  const latestHistory = useRef(history)
+  useEffect(() => {
+    latestHistory.current = history
+  }, [history])
+
+  /** Puts pictures on the recipe and its graphics: one undo step. */
+  function applyPictures(
+    changes: { target: RecipeTarget; key: string | null }[]
+  ) {
+    const now = latestHistory.current.present
+    let next = now.presentation
+    for (const { target, key } of changes) {
+      next = setRecipePicture(next, target, key)
+    }
+    change({ shots: now.shots, presentation: next }, `picture:${Math.random()}`)
+  }
+
+  async function uploadPicture(target: RecipeTarget, file: File) {
+    setPictureBusy(pictureTargetId(target))
+    const form = new FormData()
+    form.set("footageId", clip.id)
+    form.set("picture", file)
+    const result = await uploadRecipePicture(form)
+    setPictureBusy(null)
+    if (!result.ok) {
+      toast.add({ type: "error", title: result.error.message })
+      return
+    }
+    setPictureUrls((urls) => ({ ...urls, [result.data.key]: result.data.url }))
+    applyPictures([{ target, key: result.data.key }])
+  }
+
+  /** The image provider makes each picture in turn; all land as one step. */
+  async function makePictures(targets: RecipeTarget[]) {
+    const recipe = latestHistory.current.present.presentation.recipe
+    if (!recipe || targets.length === 0) return
+    setPictureBusy(
+      targets.length === 1 ? pictureTargetId(targets[0]!) : "all"
+    )
+    const made: { target: RecipeTarget; key: string }[] = []
+    for (const target of targets) {
+      const items =
+        target.kind === "ingredient" ? recipe.ingredients : recipe.steps
+      const item = items[target.index]
+      if (!item) continue
+      const result = await makeRecipePicture({
+        footageId: clip.id,
+        dish: recipe.dish,
+        kind: target.kind,
+        text: item.text,
+      })
+      if (!result.ok) {
+        toast.add({ type: "error", title: result.error.message })
+        break
+      }
+      setPictureUrls((urls) => ({
+        ...urls,
+        [result.data.key]: result.data.url,
+      }))
+      made.push({ target, key: result.data.key })
+    }
+    setPictureBusy(null)
+    if (made.length === 0) return
+    applyPictures(made)
+    toast.add({
+      type: "success",
+      title: made.length === 1 ? "Picture made" : `${made.length} pictures made`,
+      description: `${undoKey} undoes it.`,
+    })
+  }
+
   function firstCut(id: TemplateId) {
     const template = templateById(id)
     if (!template) return
@@ -1801,6 +1889,15 @@ export function FootageEditor({
                   onApply={applyTemplateById}
                   onFirstCut={firstCut}
                   onBuildRecipe={buildRecipe}
+                  pictures={{
+                    urls: pictureUrls,
+                    canMake: picturesSetUp,
+                    makesPlaceholders: picturesAreTest,
+                    busy: pictureBusy,
+                    onUpload: uploadPicture,
+                    onMake: makePictures,
+                    onRemove: (target) => applyPictures([{ target, key: null }]),
+                  }}
                 />
               </TabsContent>
               <TabsContent value="ai">
@@ -1860,6 +1957,7 @@ export function FootageEditor({
               videoUrl={links.videoUrl}
               posterUrl={links.posterUrl}
               voiceUrls={voiceUrls}
+              pictureUrls={pictureUrls}
               presentation={presentation}
               shots={timedShots}
               durationMs={durationMs}

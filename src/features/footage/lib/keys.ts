@@ -45,6 +45,24 @@ export function footageVoiceKey(
   )
 }
 
+/** A picture for the clip's recipe, uploaded or generated (M12 step 1b). */
+export function footagePictureKey(
+  workspaceId: string,
+  kitId: string,
+  footageId: string,
+  file: string
+) {
+  return workspaceFileKey(
+    workspaceId,
+    "brand-kits",
+    kitId,
+    "footage",
+    footageId,
+    "pictures",
+    file
+  )
+}
+
 export function originalFileName(type: FootageType) {
   return `original.${footageTypes[type]}` as const
 }

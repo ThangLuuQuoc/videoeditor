@@ -102,6 +102,8 @@ export type FootageStageProps = {
   brandName?: string
   /** The site to show on an end card, e.g. "acme.app". */
   siteLabel?: string
+  /** Signed links for its graphics' pictures, by bucket key. */
+  pictureUrls?: Record<string, string>
 }
 
 /** The ad's length for these props (cuts, speed and transitions). */
@@ -144,6 +146,7 @@ export function FootageStage({
   logoUrl = null,
   brandName = "",
   siteLabel = "",
+  pictureUrls = {},
 }: FootageStageProps) {
   const frameNumber = useCurrentFrame()
   const { fps, width, height } = useVideoConfig()
@@ -415,6 +418,7 @@ export function FootageStage({
             items={stageItems}
             {...stageBrand}
             animation={presentation.textStyle.animation}
+            pictureUrls={pictureUrls}
           />
           <TextLayer
             items={presentation.texts}

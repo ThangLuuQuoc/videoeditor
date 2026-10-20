@@ -6,6 +6,7 @@ import {
   type GraphicItem,
   type Presentation,
   type Recipe,
+  type RecipeTarget,
   type Shot,
 } from "@/shared/motion"
 
@@ -115,6 +116,7 @@ export function applyRecipe(
         durationMs: listMs,
         text: labels.ingredients,
         secondary: recipe.ingredients.map((item) => item.text).join("\n"),
+        images: recipe.ingredients.map((item) => item.imageKey),
         track: 1,
       })
     )
@@ -132,6 +134,7 @@ export function applyRecipe(
         durationMs: Math.min(t.itemMaxMs, Math.round(stepMs)),
         text: step.text,
         secondary: labels.step(index + 1, recipe.steps.length),
+        images: step.imageKey ? [step.imageKey] : [],
         track: 1,
       })
     )
@@ -175,4 +178,43 @@ export function applyRecipe(
       },
     },
   }
+}
+
+/**
+ * Gives one ingredient or step a picture (a bucket key; null removes it):
+ * on the recipe, and on the graphic the template made for it, so the video
+ * shows it without building again (the cook's edits to it stay).
+ */
+export function setRecipePicture(
+  presentation: Presentation,
+  target: RecipeTarget,
+  key: string | null
+): Presentation {
+  const recipe = presentation.recipe
+  const items =
+    target.kind === "ingredient" ? recipe?.ingredients : recipe?.steps
+  if (!recipe || !items?.[target.index]) return presentation
+  const changed = items.map((item, index) =>
+    index === target.index ? { ...item, imageKey: key } : item
+  )
+  const next: Recipe =
+    target.kind === "ingredient"
+      ? { ...recipe, ingredients: changed }
+      : { ...recipe, steps: changed }
+  const graphics = presentation.graphics.map((graphic) => {
+    if (target.kind === "ingredient" && graphic.id === `${prefix}list`) {
+      return {
+        ...graphic,
+        images: next.ingredients.map((item) => item.imageKey),
+      }
+    }
+    if (
+      target.kind === "step" &&
+      graphic.id === `${prefix}step-${target.index + 1}`
+    ) {
+      return { ...graphic, images: key ? [key] : [] }
+    }
+    return graphic
+  })
+  return { ...presentation, recipe: next, graphics }
 }

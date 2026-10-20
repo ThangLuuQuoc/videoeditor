@@ -1,7 +1,7 @@
 import { expect, hasDatabase, test } from "./fixtures"
 import { expectNoViolations } from "./helpers/axe"
 import { createKitByHand } from "./helpers/brand-kits"
-import { makeTestVideo } from "./helpers/video"
+import { makeTestPicture, makeTestVideo } from "./helpers/video"
 
 test.skip(
   !hasDatabase,
@@ -186,5 +186,51 @@ test("a recipe becomes a titled, step-by-step video in one undo step", async ({
   await expect(again.getByRole("textbox", { name: "Steps" })).toHaveValue(
     "Boil the noodles\nToss with garlic butter"
   )
+
+  // Pictures: upload one, make one with AI (the test provider's
+  // placeholder), then the rest in one go; each shows as a thumbnail.
+  const pictures = page.getByRole("region", { name: "Pictures" })
+  await page
+    .getByTestId("picture-file-ingredient-0")
+    .setInputFiles(await makeTestPicture())
+  await expect(
+    pictures.getByRole("img", { name: "Picture of 200 g noodles" })
+  ).toBeVisible()
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+  await pictures
+    .getByRole("button", { name: "Make a picture of Boil the noodles with AI" })
+    .click()
+  await expect(page.getByText("Picture made")).toBeVisible()
+  await expect(
+    pictures.getByRole("img", { name: "Picture of Boil the noodles" })
+  ).toBeVisible()
+  await expectNoViolations(page)
+  await pictures
+    .getByRole("button", { name: "Make 2 missing pictures with AI" })
+    .click()
+  await expect(page.getByText("2 pictures made")).toBeVisible()
+  await expect(pictures.getByRole("img")).toHaveCount(4)
+  await expect(
+    pictures.getByRole("button", { name: /missing pictures? with AI/ })
+  ).toHaveCount(0)
+
+  // Removing one is one undo step too.
+  await pictures
+    .getByRole("button", { name: "Remove the picture of 3 cloves garlic" })
+    .click()
+  await expect(pictures.getByRole("img")).toHaveCount(3)
+  await page.getByRole("button", { name: /^Undo \(/ }).click()
+  await expect(pictures.getByRole("img")).toHaveCount(4)
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+
+  // Kept, and signed again, after a reload.
+  await page.reload()
+  await page
+    .getByRole("tablist", { name: "Editor tools" })
+    .getByRole("tab", { name: "Templates" })
+    .click()
+  await expect(
+    page.getByRole("region", { name: "Pictures" }).getByRole("img")
+  ).toHaveCount(4)
   expect(consoleProblems).toEqual([])
 })

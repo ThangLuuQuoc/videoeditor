@@ -1,12 +1,16 @@
 // The recipe template (V3 M12) on the fixture footage, rendered 9:16 through
 // the app's renderVideo(): checks the new `list` and `step` graphics in a
-// real HyperFrames export (Vietnamese labels, so the font's glyphs show).
+// real HyperFrames export (Vietnamese labels, so the font's glyphs show),
+// with pictures (step 1b) on an ingredient and a step: the fixture logo.
 // Serve the fixtures with byte ranges first:
 //   node docs/hyperframes/spike-phase0/e2e/serve.mjs docs/hyperframes/spike-phase0/reelpilot-bridge/fixtures 8791
 // Then, from the repo root:
 //   TSX_TSCONFIG_PATH=tsconfig.json node --env-file=docs/hyperframes/spike-phase0/e2e/ci.env \
 //     --conditions=react-server --import tsx docs/hyperframes/spike-phase0/e2e/render-recipe.mts recipe.mp4
-import { applyRecipe } from "@/features/footage/lib/recipe-template"
+import {
+  applyRecipe,
+  setRecipePicture,
+} from "@/features/footage/lib/recipe-template"
 import type { RenderProps } from "@/remotion/RenderVideo"
 import { renderVideo } from "@/shared/render"
 import { defaultPresentation, recipeSchema } from "@/shared/motion"
@@ -36,6 +40,14 @@ const built = applyRecipe(recipe, {
   brandColors: ["#f97316", "#7c2d12"],
 })
 if (!built.ok) throw new Error(`recipe not built: ${built.reason}`)
+// Picture keys → links, as the export signs them (here: a served fixture).
+const picture = "fixtures/logo.png"
+let presentation = setRecipePicture(
+  built.motion.presentation,
+  { kind: "ingredient", index: 1 },
+  picture
+)
+presentation = setRecipePicture(presentation, { kind: "step", index: 0 }, picture)
 
 const props: RenderProps = {
   shape: "9:16",
@@ -57,7 +69,8 @@ const props: RenderProps = {
       durationMs: 12000,
       transition: cut,
       shots: [],
-      presentation: built.motion.presentation,
+      presentation,
+      pictureUrls: { [picture]: `${base}/logo.png` },
     },
   ],
 }

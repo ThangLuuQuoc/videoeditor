@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   defaultPresentation,
+  pictureKeys,
   presentationSchema,
   recipeLines,
   recipeSchema,
@@ -16,6 +17,7 @@ import {
   applyRecipe,
   recipeNeedsMs,
   recipeTiming,
+  setRecipePicture,
 } from "../lib/recipe-template"
 
 const recipe: Recipe = recipeSchema.parse({
@@ -217,5 +219,79 @@ describe("applyRecipe", () => {
     )
     const step = presentation.graphics.find((g) => g.id === "tpl-step-1")!
     expect(step.durationMs).toBe(recipeTiming.itemMaxMs)
+  })
+})
+
+describe("recipe pictures", () => {
+  const withPictures: Recipe = {
+    ...recipe,
+    ingredients: recipe.ingredients.map((item, index) => ({
+      ...item,
+      imageKey: index === 1 ? "pictures/garlic.png" : null,
+    })),
+    steps: recipe.steps.map((item, index) => ({
+      ...item,
+      imageKey: index === 0 ? "pictures/boil.png" : null,
+    })),
+  }
+
+  it("puts the recipe's pictures on the checklist's lines and the steps", () => {
+    const byId = new Map(
+      built(clip(), withPictures).graphics.map((g) => [g.id, g])
+    )
+    expect(byId.get("tpl-list")!.images).toEqual([
+      null,
+      "pictures/garlic.png",
+      null,
+    ])
+    expect(byId.get("tpl-step-1")!.images).toEqual(["pictures/boil.png"])
+    expect(byId.get("tpl-step-2")!.images).toEqual([])
+  })
+
+  it("sets one picture on the recipe and its graphic, keeping the cook's edits", () => {
+    const presentation = built()
+    const edited = {
+      ...presentation,
+      graphics: presentation.graphics.map((g) =>
+        g.id === "tpl-step-2" ? { ...g, backgroundColor: "#000000" } : g
+      ),
+    }
+    const step = setRecipePicture(
+      edited,
+      { kind: "step", index: 1 },
+      "pictures/melt.png"
+    )
+    expect(step.recipe!.steps[1]!.imageKey).toBe("pictures/melt.png")
+    const graphic = step.graphics.find((g) => g.id === "tpl-step-2")!
+    expect(graphic.images).toEqual(["pictures/melt.png"])
+    expect(graphic.backgroundColor).toBe("#000000")
+
+    const ingredient = setRecipePicture(
+      step,
+      { kind: "ingredient", index: 2 },
+      "pictures/butter.png"
+    )
+    expect(
+      ingredient.graphics.find((g) => g.id === "tpl-list")!.images
+    ).toEqual([null, null, "pictures/butter.png"])
+    expect(pictureKeys(ingredient).sort()).toEqual([
+      "pictures/butter.png",
+      "pictures/melt.png",
+    ])
+
+    // Removing it clears both; a target that isn't there changes nothing.
+    const removed = setRecipePicture(
+      ingredient,
+      { kind: "step", index: 1 },
+      null
+    )
+    expect(removed.graphics.find((g) => g.id === "tpl-step-2")!.images).toEqual(
+      []
+    )
+    expect(pictureKeys(removed)).toEqual(["pictures/butter.png"])
+    expect(
+      setRecipePicture(removed, { kind: "step", index: 9 }, "x.png")
+    ).toBe(removed)
+    expect(presentationSchema.safeParse(removed).success).toBe(true)
   })
 })

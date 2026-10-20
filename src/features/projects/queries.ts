@@ -4,6 +4,7 @@ import { getBrandKit, logoUrlFor } from "@/features/brand-kits"
 import {
   parseStoredShot,
   presentationFor,
+  pictureUrlsFor,
   voiceUrlsFor,
 } from "@/features/footage"
 import { db } from "@/shared/db"
@@ -173,6 +174,7 @@ export async function getProject(workspaceId: string, projectId: string) {
         videoUrl,
         posterUrl,
         voiceUrls: await voiceUrlsFor(presentation, hour),
+        pictureUrls: await pictureUrlsFor(presentation, hour),
       }
     })
   )

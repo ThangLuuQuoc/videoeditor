@@ -611,6 +611,7 @@ export function StageGraphics({
   siteLabel,
   background,
   animation,
+  pictureUrls = {},
 }: {
   items: Timed[]
   colors: Colors
@@ -621,6 +622,8 @@ export function StageGraphics({
   background: string
   /** The video's text style, for slides and splits. */
   animation: TextAnimation
+  /** Signed links for graphics' pictures, by bucket key. */
+  pictureUrls?: Record<string, string>
 }) {
   const cards = handOffs(items)
   return (
@@ -643,6 +646,7 @@ export function StageGraphics({
             siteLabel={siteLabel}
             background={background}
             animation={animation}
+            pictureUrls={pictureUrls}
           />
         </Sequence>
       ))}
@@ -750,6 +754,7 @@ function StageGraphic({
   siteLabel,
   background,
   animation,
+  pictureUrls,
   holdOut = false,
 }: {
   item: GraphicItem
@@ -761,6 +766,7 @@ function StageGraphic({
   siteLabel: string
   background: string
   animation: TextAnimation
+  pictureUrls: Record<string, string>
   placed: boolean
   /** Hands over to another full-stage card: no fade out. */
   holdOut?: boolean
@@ -993,6 +999,67 @@ function StageGraphic({
             {lines.map((line, i) => {
               const t = easeOutCubic((frame - 8 - i * gap) / 10)
               const tick = easeOutBack((frame - 12 - i * gap) / 10)
+              const picture = pictureUrls[item.images[i] ?? ""]
+              if (picture) {
+                // A picture of it, ticked at its corner.
+                const thumb = 6.5 * su * item.secondarySize
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.4 * su,
+                      opacity: t,
+                      transform: `translateX(${((1 - t) * 2 * su).toFixed(2)}px)`,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "relative",
+                        width: thumb,
+                        height: thumb,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Img
+                        src={picture}
+                        alt=""
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: 1.2 * su,
+                          display: "block",
+                        }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: -0.6 * su,
+                          bottom: -0.6 * su,
+                          width: 0.55 * mark + su,
+                          height: 0.55 * mark + su,
+                          borderRadius: 999,
+                          background: colors.accent,
+                          border: `${0.3 * su}px solid white`,
+                          transform: `scale(${Math.max(0, tick).toFixed(3)})`,
+                        }}
+                      />
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: fonts.body,
+                        fontSize: 2.8 * su * item.secondarySize,
+                        lineHeight: 1.25,
+                        color: item.secondaryColor ?? ink,
+                      }}
+                    >
+                      {line}
+                    </span>
+                  </div>
+                )
+              }
               return (
                 <div
                   key={i}
@@ -1055,6 +1122,8 @@ function StageGraphic({
     case "step": {
       const ink = inkOn(item.backgroundColor, "#15171c")
       const badge = easeOutBack(frame / 10)
+      const stepPicture = pictureUrls[item.images[0] ?? ""]
+      const pictureWidth = Math.min(0.5 * width, 0.42 * height)
       return (
         <div
           {...id}
@@ -1107,6 +1176,32 @@ function StageGraphic({
           >
             {item.text || "Whisk the eggs"}
           </div>
+          {stepPicture && (
+            <div
+              style={{
+                width: pictureWidth,
+                height: pictureWidth * 0.75,
+                marginTop: 0.6 * su,
+                overflow: "hidden",
+                borderRadius: 1.6 * su,
+                boxShadow: `0 ${su}px ${3.5 * su}px rgb(0 0 0 / 0.3)`,
+                ...rise(9, 14),
+              }}
+            >
+              {/* Ken Burns: a slow push in across the step. */}
+              <Img
+                src={stepPicture}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  transform: `scale(${(1.04 + 0.08 * clamp01(frame / frames)).toFixed(4)})`,
+                }}
+              />
+            </div>
+          )}
         </div>
       )
     }

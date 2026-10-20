@@ -135,6 +135,7 @@ export function newGraphic(
     textColor: null,
     secondaryColor: null,
     backgroundColor: null,
+    images: [],
     ...patch,
   }
 }

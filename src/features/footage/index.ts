@@ -14,6 +14,7 @@ export {
   clipMediaUrls,
   countFootage,
   getFootage,
+  pictureUrlsFor,
   voiceUrlsFor,
   listFootage,
   withPosterUrls,

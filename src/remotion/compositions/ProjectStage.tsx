@@ -35,6 +35,8 @@ export type ProjectStageClip = {
   transition: Transition
   /** Signed links for its voiceover lines, by storage key (voice-tracks.ts). */
   voiceUrls?: Record<string, string>
+  /** Signed links for its graphics' pictures, by storage key. */
+  pictureUrls?: Record<string, string>
 }
 
 export type ProjectStageProps = {

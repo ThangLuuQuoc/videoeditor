@@ -6,7 +6,7 @@ import { z } from "zod"
 
 import { getBrandKit } from "@/features/brand-kits"
 import { requireWorkspaceAccess } from "@/features/workspaces"
-import { voiceEnabled } from "@/shared/ai"
+import { imageEnabled, voiceEnabled } from "@/shared/ai"
 import { aiLimits } from "@/shared/config/limits"
 import {
   outputDuration,
@@ -16,6 +16,7 @@ import {
 } from "@/shared/motion"
 import { enqueue } from "@/shared/jobs"
 import { AppError } from "@/shared/lib/errors"
+import { sniffImageType } from "@/shared/lib/image-type"
 import { err, ok, toResultError, type Result } from "@/shared/lib/result"
 import { consumeRateLimit } from "@/shared/rate-limit"
 import { deleteFolder, fileSize, signedFileUpload } from "@/shared/storage"
@@ -26,6 +27,12 @@ import { parseStoredAnalysis } from "./lib/analysis"
 import { directEdit, type EditPlan } from "./lib/direct-edit"
 import { parseStoredRecording } from "./lib/recording"
 import { parseStoredInsight } from "./lib/insight"
+import {
+  makeRecipePicture as makePicture,
+  pictureRules,
+  storeRecipePicture,
+  type StoredPicture,
+} from "./lib/recipe-pictures"
 import { suggestGraphic, type GraphicSuggestion } from "./lib/suggest-graphic"
 import { writeVoiceScript as writeScript } from "./lib/voice-script"
 import { voiceLines } from "./lib/voiceover"
@@ -35,6 +42,7 @@ import {
   completeUploadSchema,
   directEditSchema,
   footageIdSchema,
+  makeRecipePictureSchema,
   makeVoiceoverSchema,
   moveMarkerSchema,
   requestUploadSchema,
@@ -550,6 +558,97 @@ export async function makeVoiceover(
       language: parsed.data.language,
     })
     return ok(voiced)
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+// ── Recipe pictures (V3 M12 step 1b) ─────────────────────────────────────
+
+const pictureTooBig = `That picture is larger than ${pictureRules.maxBytes / 1024 / 1024} MB. Use a smaller PNG, JPEG or WebP.`
+const pictureWrongType =
+  "That file isn’t a PNG, JPEG or WebP image. Choose a photo in one of those formats."
+
+/** The clip a picture is for, in this workspace. */
+async function clipForPicture(workspaceId: string, footageId: unknown) {
+  const id = z.string().min(1).max(64).safeParse(footageId)
+  const clip = id.success ? await getFootage(workspaceId, id.data) : null
+  if (!clip) throw new AppError("NOT_FOUND", "That clip doesn’t exist.")
+  return clip
+}
+
+/**
+ * Stores an uploaded picture for a recipe's ingredient or step (PNG, JPEG
+ * or WebP, max 2 MB). Returns its key and a signed link; the editor puts
+ * it on the recipe and saves.
+ */
+export async function uploadRecipePicture(
+  formData: FormData
+): Promise<Result<StoredPicture>> {
+  try {
+    const file = formData.get("picture")
+    if (!(file instanceof File) || file.size === 0) {
+      throw new AppError("VALIDATION", "Choose a picture to upload.")
+    }
+    if (file.size > pictureRules.maxBytes) {
+      throw new AppError("VALIDATION", pictureTooBig)
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    // Trust the file's bytes, not its name or declared type.
+    const type = sniffImageType(bytes)
+    if (!type) throw new AppError("VALIDATION", pictureWrongType)
+
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const clip = await clipForPicture(workspace.id, formData.get("footageId"))
+    return ok(
+      await storeRecipePicture({
+        workspaceId: workspace.id,
+        kitId: clip.brandKitId,
+        footageId: clip.id,
+        bytes,
+        type,
+        source: "upload",
+      })
+    )
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/** The image provider makes a picture for one ingredient or step. */
+export async function makeRecipePicture(
+  input: unknown
+): Promise<Result<StoredPicture>> {
+  try {
+    const parsed = makeRecipePictureSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the recipe.")
+    if (!imageEnabled()) {
+      throw new AppError(
+        "PROVIDER_FAILED",
+        "Picture generation isn’t set up on this server."
+      )
+    }
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const clip = await clipForPicture(workspace.id, parsed.data.footageId)
+    // Each picture is a paid call.
+    await consumeRateLimit({
+      key: `recipe-pictures:${workspace.id}`,
+      limit: aiLimits.recipePicturesPerDay,
+      windowSeconds: 24 * 60 * 60,
+      message: `You’ve made ${aiLimits.recipePicturesPerDay} pictures today. Try again tomorrow, or upload your own.`,
+    })
+    return ok(
+      await makePicture({
+        workspaceId: workspace.id,
+        kitId: clip.brandKitId,
+        footageId: clip.id,
+        dish: parsed.data.dish,
+        kind: parsed.data.kind,
+        text: parsed.data.text,
+      })
+    )
   } catch (error) {
     unstable_rethrow(error)
     return err(toResultError(error))

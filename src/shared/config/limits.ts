@@ -27,4 +27,6 @@ export const aiLimits = {
   voiceScriptsPerDay: 40,
   /** Lines voiced (each a paid text-to-speech call), per workspace per day. */
   voiceLinesPerDay: 300,
+  /** Recipe pictures the AI makes (each a paid call), per workspace per day. */
+  recipePicturesPerDay: 60,
 } as const

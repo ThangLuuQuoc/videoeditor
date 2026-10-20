@@ -11,6 +11,7 @@ import {
   parseStoredShot,
   presentationFor,
   transitionSchema,
+  pictureKeys,
   voiceKeys,
   type TimedShot,
 } from "@/shared/motion"
@@ -166,6 +167,8 @@ export async function loadRenderInput(
       const presentation = presentationFor(clip.presentation, colors)
       const keys = voiceKeys(presentation.voice)
       const voiceLinks = await Promise.all(keys.map((key) => sign(key)))
+      const pictures = pictureKeys(presentation)
+      const pictureLinks = await Promise.all(pictures.map((key) => sign(key)))
       return {
         id: clip.id,
         videoUrl: videoUrl ?? "",
@@ -176,6 +179,12 @@ export async function loadRenderInput(
         voiceUrls: Object.fromEntries(
           keys.flatMap((key, index) => {
             const url = voiceLinks[index]
+            return url ? [[key, url]] : []
+          })
+        ),
+        pictureUrls: Object.fromEntries(
+          pictures.flatMap((key, index) => {
+            const url = pictureLinks[index]
             return url ? [[key, url]] : []
           })
         ),

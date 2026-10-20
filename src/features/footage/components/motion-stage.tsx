@@ -69,6 +69,7 @@ export function MotionStage({
   interactive = false,
   bare = false,
   voiceUrls,
+  pictureUrls,
 }: {
   playerRef: React.RefObject<StagePlayerRef | null>
   videoUrl: string
@@ -107,6 +108,8 @@ export function MotionStage({
   bare?: boolean
   /** Signed links for the voiceover's lines, by storage key. */
   voiceUrls?: Record<string, string>
+  /** Signed links for graphics' pictures (recipes), by storage key. */
+  pictureUrls?: Record<string, string>
 }) {
   const size = stageSizes[aspect]
   // Where playback was, so switching shape (a new Player) keeps the spot.
@@ -155,6 +158,7 @@ export function MotionStage({
       logoUrl,
       brandName,
       siteLabel,
+      pictureUrls,
       playing,
       preview: true,
     }),
@@ -175,6 +179,7 @@ export function MotionStage({
       logoUrl,
       brandName,
       siteLabel,
+      pictureUrls,
       playing,
     ]
   )

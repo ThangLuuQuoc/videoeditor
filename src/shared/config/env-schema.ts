@@ -43,6 +43,10 @@ const envSchema = z.object({
   VOICE_MODEL: z.string().min(1).optional(),
   VOICE_ID: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
+  // Pictures for recipes (V3 M12 step 1b): unset = off; "test" draws a
+  // placeholder PNG (development/CI). The real provider is open (V3 Q7).
+  IMAGE_PROVIDER: z.enum(["openai", "test"]).optional(),
+  IMAGE_MODEL: z.string().min(1).optional(),
   ELEVENLABS_API_KEY: z.string().min(1).optional(),
 
   // Neon Object Storage for the linked branch. Written by `neon env pull`.
@@ -71,7 +75,8 @@ const envSchema = z.object({
 })
 
 /** A real voice provider needs its model, voice and key. */
-const voiceSchema = envSchema.superRefine((env, ctx) => {
+// Providers that need more settings once chosen (voice, pictures).
+const providerSchema = envSchema.superRefine((env, ctx) => {
   const provider = env.VOICE_PROVIDER
   if (!provider || provider === "test") return
   const key = provider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY"
@@ -84,13 +89,24 @@ const voiceSchema = envSchema.superRefine((env, ctx) => {
       })
     }
   }
+}).superRefine((env, ctx) => {
+  if (env.IMAGE_PROVIDER !== "openai") return
+  for (const name of ["IMAGE_MODEL", "OPENAI_API_KEY"] as const) {
+    if (!env[name]) {
+      ctx.addIssue({
+        code: "custom",
+        path: [name],
+        message: "Required when IMAGE_PROVIDER is openai.",
+      })
+    }
+  }
 })
 
 export type Env = z.infer<typeof envSchema>
 
 /** Parses env vars, listing every problem by name (never by value). */
 export function parseEnv(source: Record<string, string | undefined>): Env {
-  const parsed = voiceSchema.safeParse(source)
+  const parsed = providerSchema.safeParse(source)
   if (parsed.success) return parsed.data
 
   const problems = parsed.error.issues

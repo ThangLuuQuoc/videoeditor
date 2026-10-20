@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import {
   presentationSchema,
+  recipeLimits,
   shotSchema,
   voiceLanguages,
   voiceLimits,
@@ -147,4 +148,12 @@ export const makeVoiceoverSchema = z.object({
       voiceLimits.script,
       `Keep the script under ${voiceLimits.script} characters.`
     ),
+})
+
+/** "Make it with AI": one recipe picture (V3 M12 step 1b). */
+export const makeRecipePictureSchema = z.object({
+  footageId: idSchema,
+  dish: z.string().trim().min(1, "Name the dish first.").max(recipeLimits.dish),
+  kind: z.enum(["ingredient", "step"]),
+  text: z.string().trim().min(1).max(recipeLimits.step),
 })

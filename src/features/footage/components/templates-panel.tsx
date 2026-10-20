@@ -2,13 +2,14 @@
 
 import { CheckIcon, SparklesIcon } from "lucide-react"
 
-import type { Recipe } from "@/shared/motion"
+import type { Recipe, RecipeTarget } from "@/shared/motion"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
 
 import { templates, type TemplateId } from "../lib/templates"
 import { PanelHeading } from "./editor-panels"
 import { RecipeForm } from "./recipe-form"
+import { RecipePictures } from "./recipe-pictures"
 
 /**
  * Templates (§7.16): a finished style in one click, or an "AI first cut"
@@ -20,6 +21,7 @@ export function TemplatesPanel({
   hasMoments,
   isDirecting,
   recipe,
+  pictures,
   onApply,
   onFirstCut,
   onBuildRecipe,
@@ -31,6 +33,16 @@ export function TemplatesPanel({
   onApply: (id: TemplateId) => void
   onFirstCut: (id: TemplateId) => void
   onBuildRecipe: (recipe: Recipe) => string | null
+  /** Pictures for the built recipe's ingredients and steps. */
+  pictures: {
+    urls: Record<string, string>
+    canMake: boolean
+    makesPlaceholders: boolean
+    busy: string | null
+    onUpload: (target: RecipeTarget, file: File) => void
+    onMake: (targets: RecipeTarget[]) => void
+    onRemove: (target: RecipeTarget) => void
+  }
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -114,6 +126,18 @@ export function TemplatesPanel({
           disabled={isDirecting}
           onBuild={onBuildRecipe}
         />
+        {recipe && activeTemplate === "recipe" && (
+          <RecipePictures
+            recipe={recipe}
+            pictureUrls={pictures.urls}
+            canMake={pictures.canMake}
+            makesPlaceholders={pictures.makesPlaceholders}
+            busy={pictures.busy}
+            onUpload={pictures.onUpload}
+            onMake={pictures.onMake}
+            onRemove={pictures.onRemove}
+          />
+        )}
       </section>
     </div>
   )

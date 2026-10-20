@@ -38,6 +38,7 @@ env:
   HYPERFRAMES_NO_UPDATE_CHECK: "1"
   # Voiceover with the development tone (no provider account in CI).
   VOICE_PROVIDER: test
+  IMAGE_PROVIDER: test
 
 jobs:
   check:

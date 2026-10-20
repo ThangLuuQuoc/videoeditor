@@ -186,6 +186,8 @@ export const graphicLimits = {
   text: 140,
   /** A checklist's lines, one per line. */
   lines: 400,
+  /** Pictures on one graphic (a checklist's, one per line). */
+  pictures: 12,
 } as const
 
 const unit = z.number().min(0).max(1)
@@ -249,6 +251,14 @@ export const graphicItemSchema = z.object({
   secondaryColor: hexColorSchema.nullable().default(null),
   /** Its surface (pill, card, keycaps, slide or column); null = its own. */
   backgroundColor: hexColorSchema.nullable().default(null),
+  /**
+   * Pictures, as keys in the bucket (signed for the stage as `pictureUrls`):
+   * a checklist's, one per line (null = none); a step's, the first.
+   */
+  images: z
+    .array(z.string().max(300).nullable())
+    .max(graphicLimits.pictures)
+    .default([]),
 })
 export type GraphicItem = z.output<typeof graphicItemSchema>
 

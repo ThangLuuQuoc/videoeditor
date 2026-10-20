@@ -55,6 +55,28 @@ export const recipeLabels: Record<
   },
 }
 
+/** Which picture of a recipe: an ingredient's or a step's, by position. */
+export type RecipeTarget = { kind: "ingredient" | "step"; index: number }
+
+/**
+ * Every picture a clip shows or offers, as bucket keys: its graphics' and
+ * its recipe's (the form shows those). Signed for the stage and editor.
+ */
+export function pictureKeys(presentation: {
+  graphics: { images: (string | null)[] }[]
+  recipe: Recipe | null
+}) {
+  const keys = new Set<string>()
+  for (const graphic of presentation.graphics) {
+    for (const key of graphic.images) if (key) keys.add(key)
+  }
+  const recipe = presentation.recipe
+  for (const item of [...(recipe?.ingredients ?? []), ...(recipe?.steps ?? [])]) {
+    if (item.imageKey) keys.add(item.imageKey)
+  }
+  return [...keys]
+}
+
 /**
  * Lines typed or pasted into a box, one item each: blank lines dropped,
  * list marks ("-", "•", "1.", "2)") removed.

@@ -11,11 +11,17 @@ import {
   getFootage,
   presentationFor,
   RefreshWhileProcessing,
+  pictureUrlsFor,
   voiceUrlsFor,
 } from "@/features/footage"
 import { getProjectName } from "@/features/projects"
 import { can, requireWorkspaceAccess } from "@/features/workspaces"
-import { voiceEnabled, voiceIsTest } from "@/shared/ai"
+import {
+  imageEnabled,
+  imageIsTest,
+  voiceEnabled,
+  voiceIsTest,
+} from "@/shared/ai"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { LinkButton } from "@/shared/ui/link-button"
 import { Spinner } from "@/shared/ui/spinner"
@@ -123,6 +129,9 @@ export default async function FootageEditorPage({
           backTo={backTo}
           video={video}
           voiceUrls={await voiceUrlsFor(presentation)}
+          pictureUrls={await pictureUrlsFor(presentation)}
+          picturesSetUp={imageEnabled()}
+          picturesAreTest={imageIsTest()}
           voiceSetUp={voiceEnabled()}
           voiceIsTest={voiceIsTest()}
         />
