@@ -19,11 +19,16 @@ const byExtension: Record<string, string> = {
   m4v: "video/mp4",
   mov: "video/quicktime",
   webm: "video/webm",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
 }
 
 /**
- * The file's video type, from the browser or (when it reports none, as
- * Windows often does for .mov) from its extension. "" if not a video we take.
+ * The file's type, from the browser or (when it reports none, as Windows
+ * often does for .mov) from its extension: a video, or a photo (it becomes
+ * a still clip). "" if not one we take.
  */
 export function videoTypeOf(file: { type: string; name?: string }) {
   const type = file.type.split(";")[0]?.trim().toLowerCase() ?? ""

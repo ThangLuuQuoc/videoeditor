@@ -198,7 +198,9 @@ export const defaultPresentation: Presentation = {
   texts: [],
   graphics: [],
   template: null,
+  kenBurns: "off",
   recipe: null,
+  story: null,
   voice: null,
   lens: {
     depthOfField: { enabled: false, fStop: 2.8, maxBlur: 1.2 },

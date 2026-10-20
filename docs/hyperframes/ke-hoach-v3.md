@@ -16,7 +16,7 @@
 | M8 Template & AI first cut | ✅ cấp clip + cấp video, có hoàn tác; test unit/DB/Playwright |
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
 | M10, M11 | chưa bắt đầu |
-| M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); **ảnh (1b) ✅** với provider `test`; **đọc các bước + công thức cho cả video (1c) ✅**; timeline, data, làm đẹp chưa làm |
+| M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); **ảnh (1b) ✅** với provider `test`; **đọc các bước + công thức cho cả video (1c) ✅**; **timeline (bước 2) ✅** (clip ảnh, Ken Burns, mốc thời gian, thanh chương); data, làm đẹp chưa làm |
 
 Chi tiết từng hạng mục: `README.md` mục 2.
 
@@ -165,7 +165,7 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 | Thể loại | Dùng lại | Cần thêm | Thứ tự |
 | :--- | :--- | :--- | :--- |
 | **Nấu ăn** | `slide` (tên món), `stat`, `split`, tua 2× đoạn chờ, phụ đề giọng đọc | graphic **`list`** (nguyên liệu hiện từng dòng, có dấu tích), graphic **`step`** (nhãn "Bước 2/5" + lời hướng dẫn), sau đó đồng hồ đếm ngược; AI: dán công thức → chia bước + lời đọc | **1** |
-| **Timeline / kể chuyện** | `slide` (chương), `lower-third`, chuyển cảnh | mốc thời gian (năm + thanh tiến trình theo chương), **clip ảnh + Ken Burns** | 2 |
+| **Timeline / kể chuyện** | `slide` (chương), `lower-third`, chuyển cảnh | ~~mốc thời gian (năm + thanh tiến trình theo chương), **clip ảnh + Ken Burns**~~ ✅ 20/10 | 2 ✅ |
 | **Data** | `stat` (số chạy), `slide` | biểu đồ cột/đường/tròn từ bảng nhỏ (dán CSV), bảng xếp hạng động | 3 |
 | **Làm đẹp** | `split` (trước/sau), `callout`, `magnifier`/`focus`, look | so sánh trước/sau bằng thanh kéo trượt, thẻ sản phẩm (tên, giá, màu), look làm mịn/tông ấm | 4 (cùng nhạc nền) |
 
@@ -184,6 +184,8 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 - Bước không có video thì dùng ảnh + Ken Burns; video chỉ gồm ảnh cần **clip ảnh** (hiện clip phải là video).
 - Ảnh AI cho nguyên liệu thường ổn; ảnh minh họa thao tác dễ sai, nên gắn nhãn "ảnh minh họa" và cho thay.
 - **Câu hỏi mở Q7:** nhà cung cấp tạo ảnh và ngân sách (giống Q5 cho giọng đọc).
+
+**Bước 2 — Timeline / kể chuyện (✅ 20/10):** ảnh tải lên được như video (worker giữ thành clip tĩnh 6 s); Ken Burns zoom chậm bên trong khung; graphic `milestone` (năm, sự kiện, một dòng) và `progress` (thanh chương đầy dần theo chương). Form "Timeline": tiêu đề, dòng phụ, chương mỗi dòng `năm | sự kiện | một dòng`, câu end card. Trên cả video: một chương mỗi clip khi số clip bằng số chương (ảnh xen kẽ zoom vào/ra), không thì các chương chia đều thời gian. Một ảnh 6 s **không đủ** cho cả timeline (tiêu đề 2,6 s + chương 1,5 s + end card 3 s), nên timeline dành cho video nhiều clip. Để sau: đọc lời từng chương (như recipe 1c), ảnh AI cho chương thiếu ảnh, chọn độ dài cho clip ảnh.
 
 **Xong khi:** từ một clip nấu ăn và một công thức, 1 thao tác cho ra video 9:16 có tiêu đề, nguyên liệu, từng bước và end card; preview và export giống nhau; hoàn tác một bước; có test unit + Playwright.
 
@@ -234,4 +236,4 @@ Thêm theo milestone:
 3. M6: lấy 2–3 video quay màn hình thật (3–10 phút) để đo và kiểm tra (**cần chủ dự án gửi video**).
 4. ~~M6: thêm khung 4:5.~~ ✅
 5. ~~Thiết kế dữ liệu template cho M8 (zod trong `shared/motion`) và lấy ý kiến chủ dự án về 4 template mẫu.~~ ✅ (M8 xong)
-6. ~~M12 bước 1: template nấu ăn~~ ✅, ~~bước 1b ảnh~~ ✅ (provider `test`; chốt Q7 để bật ảnh thật). ~~áp công thức cho cả video, bước làm lời đọc~~ ✅; tiếp theo là timeline → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).
+6. ~~M12 bước 1: template nấu ăn~~ ✅, ~~bước 1b ảnh~~ ✅ (provider `test`; chốt Q7 để bật ảnh thật). ~~áp công thức cho cả video, bước làm lời đọc~~ ✅; ~~timeline~~ ✅; tiếp theo → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).

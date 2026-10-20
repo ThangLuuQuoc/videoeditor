@@ -14,6 +14,8 @@ export const processingRules = {
   minMarkerGapMs: 2000,
   /** Ignore "changes" in the first moments (fade-ins, window chrome). */
   skipStartMs: 500,
+  /** A photo's still clip (V3 M12 timeline). Cuts and speed change it. */
+  photoMs: 6000,
 } as const
 
 const R = processingRules
@@ -98,6 +100,39 @@ export function transcodeArgs(input: string, output: string) {
     "22",
     "-pix_fmt",
     "yuv420p",
+    "-movflags",
+    "+faststart",
+    output,
+  ]
+}
+
+/**
+ * A photo held for `photoMs` as the same kind of MP4 (even sides, 30 fps,
+ * no audio), so a still clip edits, plays and renders like any other.
+ */
+export function photoArgs(input: string, output: string) {
+  const max = R.maxDimension
+  return [
+    "-loop",
+    "1",
+    "-framerate",
+    "30",
+    "-t",
+    (R.photoMs / 1000).toFixed(3),
+    "-i",
+    input,
+    "-vf",
+    `scale='min(${max},iw)':'min(${max},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,format=yuv420p`,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-tune",
+    "stillimage",
+    "-crf",
+    "20",
+    "-r",
+    "30",
     "-movflags",
     "+faststart",
     output,

@@ -54,7 +54,7 @@ export type RecipeLayout =
   /** Room enough in total, but voiced steps can't cross clips to use it. */
   | { ok: false; reason: "steps-dont-fit" }
 
-type Segment = { clip: number; startMs: number; endMs: number }
+export type Segment = { clip: number; startMs: number; endMs: number }
 
 /** The checklist's length for its lines. */
 function listWantedMs(lines: number) {
@@ -180,7 +180,7 @@ export function layoutRecipe(
  * Steps of equal length one after another through the segments; a step
  * that runs past a clip's end goes on at the next clip's start.
  */
-function shareEqually(
+export function shareEqually(
   segments: Segment[],
   steps: number
 ): { slots: RecipeSlot[] | null } {

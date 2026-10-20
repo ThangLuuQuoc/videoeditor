@@ -26,7 +26,9 @@ test("footage tab starts empty and shows the clip limits", async ({
   await expect(
     page.getByText("Up to 1 GB and 10 minutes per clip.", { exact: false })
   ).toBeVisible()
-  await expect(page.getByRole("button", { name: "Upload video" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Upload video or photo" })
+  ).toBeVisible()
   expect(consoleProblems).toEqual([])
 })
 
@@ -68,7 +70,9 @@ test("a file that isn't a video is refused before uploading", async ({
   })
 
   await expect(
-    page.getByText("Upload an MP4, MOV or WebM video.")
+    page.getByText(
+      "Upload a video (MP4, MOV, WebM) or a photo (JPEG, PNG, WebP)."
+    )
   ).toBeVisible()
 })
 

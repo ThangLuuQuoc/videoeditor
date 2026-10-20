@@ -15,8 +15,15 @@ export const footageTypes = {
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
+  // Photos (V3 M12 timeline): the worker turns each into a short still clip.
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
 } as const
 export type FootageType = keyof typeof footageTypes
+
+/** A photo, not a video: it becomes a still clip. */
+export const isPhotoType = (type: string) => type.startsWith("image/")
 
 export const footageLimits = {
   name: 80,
@@ -32,7 +39,7 @@ const contentTypeSchema = z
   .transform((value) => value.split(";")[0]?.trim().toLowerCase() ?? "")
   .pipe(
     z.enum(Object.keys(footageTypes) as [FootageType, ...FootageType[]], {
-      message: "Upload an MP4, MOV or WebM video.",
+      message: "Upload a video (MP4, MOV, WebM) or a photo (JPEG, PNG, WebP).",
     })
   )
 
@@ -40,7 +47,9 @@ const contentTypeSchema = z
 const footageNameSchema = z
   .string()
   .trim()
-  .transform((value) => value.replace(/\.(mp4|mov|webm|m4v)$/i, "").trim())
+  .transform((value) =>
+    value.replace(/\.(mp4|mov|webm|m4v|jpe?g|png|webp)$/i, "").trim()
+  )
   .transform((value) => value.slice(0, footageLimits.name) || "Untitled clip")
 
 export const requestUploadSchema = z.object({

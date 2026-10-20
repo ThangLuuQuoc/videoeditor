@@ -12,6 +12,8 @@ import {
   KeyboardIcon,
   ListChecksIcon,
   ListOrderedIcon,
+  MilestoneIcon,
+  GaugeIcon,
   MessageSquareIcon,
   MousePointerClickIcon,
   PanelBottomIcon,
@@ -69,6 +71,8 @@ const icons: Record<
   "lower-third": PanelBottomIcon,
   list: ListChecksIcon,
   step: ListOrderedIcon,
+  milestone: MilestoneIcon,
+  progress: GaugeIcon,
   logo: AwardIcon,
   "end-card": FlagIcon,
   slide: PresentationIcon,
@@ -84,6 +88,7 @@ const hasSurface = (kind: GraphicKind) =>
     "lower-third",
     "list",
     "step",
+    "milestone",
     "end-card",
     "slide",
     "split",
@@ -360,13 +365,21 @@ function GraphicInspector({
       {info.secondary && (
         <Field>
           <FieldLabel htmlFor="graphic-secondary">{info.secondary}</FieldLabel>
-          {item.kind === "list" ? (
+          {item.kind === "list" ||
+          item.kind === "progress" ||
+          item.kind === "milestone" ? (
             <Textarea
               id="graphic-secondary"
               value={item.secondary}
               maxLength={graphicLimits.lines}
               rows={5}
-              placeholder={"2 eggs\n200 g flour"}
+              placeholder={
+                item.kind === "progress"
+                  ? "Beginnings\nGrowth\nToday"
+                  : item.kind === "milestone"
+                    ? "Where it began\nA garage in Hanoi"
+                    : "2 eggs\n200 g flour"
+              }
               onChange={(event) =>
                 onUpdate({ secondary: event.target.value }, "secondary")
               }

@@ -60,6 +60,7 @@ import {
   type GraphicItem,
   type Recipe,
   type RecipeTarget,
+  type Story,
   type VoiceLanguage,
 } from "@/shared/motion"
 import type { StageFonts } from "@/remotion/components/TextLayer"
@@ -160,6 +161,8 @@ import {
 } from "./editor-panels"
 import { MomentsPanel } from "./moments-panel"
 import { pictureTargetId } from "./recipe-pictures"
+import { applyStory, storyFailure } from "../lib/story-template"
+import { isPhotoType } from "../schema"
 import { TemplatesPanel } from "./templates-panel"
 import { VoicePanel } from "./voice-panel"
 import { MotionStage, stageAspects, type StageAspect } from "./motion-stage"
@@ -1352,6 +1355,26 @@ export function FootageEditor({
     return null
   }
 
+  /** The timeline template (M12): one undo step; a problem, or null. */
+  async function buildStory(story: Story) {
+    const result = applyStory(story, {
+      current: latestHistory.current.present,
+      durationMs,
+      brandColors,
+      isPhoto: isPhotoType(clip.contentType),
+    })
+    if (!result.ok) return storyFailure(result, story, "clip")
+    change(result.motion, `template:story:${Math.random()}`)
+    stop()
+    play()
+    toast.add({
+      type: "success",
+      title: "Timeline video built",
+      description: `${story.title}. ${undoKey} undoes it.`,
+    })
+    return null
+  }
+
   /** Puts pictures on the recipe and its graphics: one undo step. */
   function applyPictures(
     changes: { target: RecipeTarget; key: string | null }[]
@@ -1900,6 +1923,8 @@ export function FootageEditor({
                   hasMoments={markers.length > 0}
                   isDirecting={isDirecting}
                   recipe={presentation.recipe}
+                  story={presentation.story}
+                  onBuildStory={buildStory}
                   voiceSetUp={voiceSetUp}
                   voiceIsTest={voiceIsTest}
                   onApply={applyTemplateById}

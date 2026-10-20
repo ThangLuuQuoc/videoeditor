@@ -24,6 +24,8 @@ export const graphicKinds = [
   "lower-third",
   "list",
   "step",
+  "milestone",
+  "progress",
   "logo",
   "end-card",
   // Layouts: the whole stage
@@ -142,10 +144,24 @@ export const graphicInfo: Record<
   },
   step: {
     label: "Step",
-    hint: "A numbered badge and what to do: \"Step 2/5 · Whisk the eggs\".",
+    hint: 'A numbered badge and what to do: "Step 2/5 · Whisk the eggs".',
     durationMs: 3500,
     text: "What to do",
     secondary: "Badge",
+  },
+  milestone: {
+    label: "Milestone",
+    hint: "A date and what happened, big over the picture: a timeline's chapter.",
+    durationMs: 3500,
+    text: "Date",
+    secondary: "What happened (a second line is smaller)",
+  },
+  progress: {
+    label: "Chapter bar",
+    hint: "The story's chapters along the bottom, filling as it goes.",
+    durationMs: 4000,
+    text: "",
+    secondary: "Chapters (one per line)",
   },
   logo: {
     label: "Logo reveal",
@@ -176,6 +192,10 @@ export const graphicInfo: Record<
     secondary: "Line",
   },
 }
+
+/** Stage graphics that keep their own spot (never dragged). */
+export const isAnchoredGraphic = (kind: GraphicKind) =>
+  kind === "end-card" || kind === "progress"
 
 /** Graphics that take over the stage's layout (not placed or dragged). */
 export const isLayoutGraphic = (kind: GraphicKind) =>
@@ -259,6 +279,14 @@ export const graphicItemSchema = z.object({
     .array(z.string().max(300).nullable())
     .max(graphicLimits.pictures)
     .default([]),
+  /**
+   * Chapter bars: the chapter showing, and how far the bar fills over this
+   * graphic (0–1 of the whole story); null = from empty to full.
+   */
+  progress: z
+    .object({ current: z.number().int().min(0).max(19), from: unit, to: unit })
+    .nullable()
+    .default(null),
 })
 export type GraphicItem = z.output<typeof graphicItemSchema>
 

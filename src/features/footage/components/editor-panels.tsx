@@ -833,6 +833,31 @@ export function StylePanel({
             Shadow under the screen
           </FieldLabel>
         </Field>
+        <Field>
+          <span className="text-sm font-medium" id="ken-burns-label">
+            Slow zoom (for photos)
+          </span>
+          <ToggleGroup
+            aria-labelledby="ken-burns-label"
+            variant="outline"
+            className="grid grid-cols-3 gap-1"
+            value={[presentation.kenBurns]}
+            onValueChange={(values) => {
+              const kenBurns = values[0] as Presentation["kenBurns"] | undefined
+              if (kenBurns) onChange({ ...presentation, kenBurns }, "ken-burns")
+            }}
+          >
+            <ToggleGroupItem value="off" className="w-full">
+              Off
+            </ToggleGroupItem>
+            <ToggleGroupItem value="in" className="w-full">
+              Zoom in
+            </ToggleGroupItem>
+            <ToggleGroupItem value="out" className="w-full">
+              Zoom out
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </Field>
         <Field orientation="horizontal">
           <Switch
             id="animated-background"

@@ -5,13 +5,17 @@ import type { LanguageModel, SpeechModel } from "ai"
 import { getBrandKit } from "@/features/brand-kits"
 import {
   buildRecipeClip,
+  buildStoryClip,
   getFootage,
+  isPhotoType,
   layoutRecipe,
+  layoutStory,
   parseStoredShot,
   presentationFor,
   recipeFailure,
   speakLines,
   storeVoicedLine,
+  storyFailure,
   templateById,
   templatedMotion,
   templateTransition,
@@ -32,6 +36,7 @@ import {
   type Presentation,
   type Recipe,
   type Shot,
+  type Story,
   type ProjectClipInput,
   type Transition,
 } from "@/shared/motion"
@@ -552,6 +557,188 @@ export async function applyRecipeToVideo(
           storedTransition(clip.transition)
         ),
         applied: results.length,
+        skipped: 0,
+      }
+    },
+    // Neon is a network hop away; a video can have many clips.
+    { timeout: 30_000, maxWait: 10_000 }
+  )
+}
+
+/**
+ * The timeline template across every clip of a video, as one change (V3
+ * M12): the title on the first clip, a chapter per clip when the counts
+ * match (else the chapters share the time), the end card on the last.
+ * Photos get a slow zoom, alternating in and out. Undone with "Undo
+ * template". Every clip must be processed and appear once.
+ */
+export async function applyStoryToVideo(
+  workspaceId: string,
+  input: { projectId: string; baseVersion: number; story: Story }
+) {
+  const { story } = input
+  const project = await db.project.findFirst({
+    where: { id: input.projectId, workspaceId },
+    select: {
+      version: true,
+      brandKitId: true,
+      clips: {
+        orderBy: { position: "asc" },
+        select: { id: true, footageId: true, transition: true },
+      },
+    },
+  })
+  if (!project) throw projectNotFound()
+  if (project.version !== input.baseVersion) throw videoChanged()
+  const kit = await getBrandKit(workspaceId, project.brandKitId)
+  if (!kit) throw projectNotFound()
+  if (project.clips.length === 0) {
+    throw new AppError("VALIDATION", "Add a clip to the video first.")
+  }
+  const footageIds = project.clips.map((clip) => clip.footageId)
+  if (new Set(footageIds).size !== footageIds.length) {
+    throw new AppError(
+      "VALIDATION",
+      "A clip appears twice in this video; a timeline needs each clip once."
+    )
+  }
+
+  const clips: {
+    footageId: string
+    baseVersion: number
+    durationMs: number
+    isPhoto: boolean
+    before: Motion
+  }[] = []
+  for (const footageId of footageIds) {
+    const clip = await getFootage(workspaceId, footageId)
+    if (!clip || clip.status !== "READY" || !clip.durationMs) {
+      throw new AppError(
+        "VALIDATION",
+        "Wait until every clip is processed, then build the timeline."
+      )
+    }
+    clips.push({
+      footageId,
+      baseVersion: clip.presentationVersion,
+      durationMs: clip.durationMs,
+      isPhoto: isPhotoType(clip.contentType),
+      before: {
+        presentation: presentationFor(clip.presentation, kit.colors),
+        shots: Object.fromEntries(
+          clip.markers.map((marker) => [
+            marker.id,
+            parseStoredShot(marker.shot),
+          ])
+        ),
+      },
+    })
+  }
+  const layout = layoutStory(
+    story,
+    clips.map((clip) =>
+      Math.round(outputDuration(clip.before.presentation.edit, clip.durationMs))
+    )
+  )
+  if (!layout.ok) {
+    throw new AppError("VALIDATION", storyFailure(layout, story, "video"))
+  }
+
+  const brandColors = [
+    kit.colors.primary,
+    kit.colors.secondary,
+    kit.colors.accent,
+  ].filter((color): color is string => Boolean(color))
+  const results: TemplatedClip[] = []
+  let photos = 0
+  for (const [index, clip] of clips.entries()) {
+    const built = buildStoryClip(story, {
+      current: clip.before,
+      durationMs: clip.durationMs,
+      brandColors,
+      slots: layout.slots.filter((slot) => slot.clip === index),
+      // Photos zoom in, then out, then in…: never the same move twice.
+      kenBurns: clip.isPhoto ? (photos++ % 2 === 0 ? "in" : "out") : null,
+      scope: "video",
+    })
+    if (!built.ok) {
+      throw new AppError("VALIDATION", storyFailure(built, story, "video"))
+    }
+    results.push({
+      footageId: clip.footageId,
+      baseVersion: clip.baseVersion,
+      before: clip.before,
+      after: built.motion,
+    })
+  }
+  return saveVideoTemplate(workspaceId, {
+    projectId: input.projectId,
+    baseVersion: input.baseVersion,
+    templateId: "story",
+    results,
+    clips: project.clips,
+  })
+}
+
+/**
+ * Saves a genre template's clips as one change, keeping what they were so
+ * "Undo template" restores them. The joins between clips stay as they are.
+ */
+async function saveVideoTemplate(
+  workspaceId: string,
+  input: {
+    projectId: string
+    baseVersion: number
+    templateId: string
+    results: TemplatedClip[]
+    clips: { id: string; transition: unknown }[]
+  }
+) {
+  const undo: TemplateUndo = {
+    templateId: input.templateId,
+    withAi: false,
+    appliedVersion: input.baseVersion + 1,
+    clips: input.results.map((result) => ({
+      footageId: result.footageId,
+      versionAfter: result.baseVersion + 1,
+      presentation: result.before.presentation,
+      shots: result.before.shots,
+    })),
+    transitions: input.clips.map((clip) => ({
+      clipId: clip.id,
+      transition: storedTransition(clip.transition),
+    })),
+  }
+  return db.$transaction(
+    async (tx) => {
+      const { count } = await tx.project.updateMany({
+        where: { id: input.projectId, workspaceId, version: input.baseVersion },
+        data: {
+          version: { increment: 1 },
+          templateUndo: undo as Prisma.InputJsonValue,
+        },
+      })
+      if (count === 0) throw videoChanged()
+      for (const result of input.results) {
+        const saved = await tx.footage.updateMany({
+          where: {
+            id: result.footageId,
+            workspaceId,
+            presentationVersion: result.baseVersion,
+          },
+          data: {
+            presentation: result.after.presentation as Prisma.InputJsonValue,
+            presentationVersion: { increment: 1 },
+          },
+        })
+        if (saved.count === 0) throw videoChanged()
+      }
+      return {
+        version: input.baseVersion + 1,
+        transitions: input.clips.map((clip) =>
+          storedTransition(clip.transition)
+        ),
+        applied: input.results.length,
         skipped: 0,
       }
     },

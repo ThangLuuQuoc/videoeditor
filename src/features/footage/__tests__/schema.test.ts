@@ -40,7 +40,7 @@ describe("requestUploadSchema", () => {
     (contentType) => {
       const result = requestUploadSchema.safeParse({ ...upload, contentType })
       expect(result.error?.issues[0]?.message).toBe(
-        "Upload an MP4, MOV or WebM video."
+        "Upload a video (MP4, MOV, WebM) or a photo (JPEG, PNG, WebP)."
       )
     }
   )

@@ -9,6 +9,7 @@ import {
 
 import {
   backgroundStyle,
+  kenBurnsAt,
   cameraSpeed,
   cameraStyle,
   depthOfFieldLayers,
@@ -170,6 +171,10 @@ export function FootageStage({
   )
 
   const timeMs = (frameNumber / fps) * 1000
+  const burns = kenBurnsAt(
+    presentation.kenBurns,
+    timeMs / Math.max(1, layout.at(-1)?.outEndMs ?? durationMs)
+  )
   const pose = flat ? flatPose : poseAt(timeMs)
   const style = cameraStyle(pose)
   // 1% of the stage's width, so every size scales with the composition.
@@ -323,80 +328,91 @@ export function FootageStage({
               clipPath: `inset(0 round ${(frame.radius * unit).toFixed(2)}px)`,
             }}
           >
-            {preview ? (
-              <>
-                <PlayerFootage
-                  videoUrl={videoUrl}
-                  posterUrl={posterUrl}
-                  parts={playerParts}
-                  adMs={timeMs}
-                  playing={playing}
-                  styleFor={(part, localMs) =>
-                    partLook(part, localMs, irisAt, unit)
-                  }
-                  onVideoError={onVideoError}
-                />
-                {magnifiers.length > 0 && (
-                  <PlayerMagnifier
-                    magnifiers={magnifiers}
-                    frame={frameNumber}
-                    frameWidth={frameWidth}
-                    frameHeight={frameHeight}
-                    video={
-                      <PlayerMagnifierVideo
-                        videoUrl={videoUrl}
-                        at={toSource(edit, durationMs, timeMs) / 1000}
-                        speed={speedAt(timeMs)}
-                        playing={playing}
-                      />
+            {/* Ken Burns (photos): moves what's inside, not the frame. */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                transform: burns
+                  ? `translate(${burns.x.toFixed(3)}%, ${burns.y.toFixed(3)}%) scale(${burns.scale.toFixed(4)})`
+                  : undefined,
+              }}
+            >
+              {preview ? (
+                <>
+                  <PlayerFootage
+                    videoUrl={videoUrl}
+                    posterUrl={posterUrl}
+                    parts={playerParts}
+                    adMs={timeMs}
+                    playing={playing}
+                    styleFor={(part, localMs) =>
+                      partLook(part, localMs, irisAt, unit)
                     }
+                    onVideoError={onVideoError}
                   />
-                )}
-              </>
-            ) : (
-              <>
-                {layout.map((part, i) => {
-                  const next = layout[i + 1]
-                  const from = Math.round((part.outStartMs / 1000) * fps)
-                  const to = Math.round((part.outEndMs / 1000) * fps)
-                  return (
-                    <Sequence
-                      key={part.startMs}
-                      from={from}
-                      durationInFrames={Math.max(1, to - from)}
-                      // Loads and seeks each part's video 5s before it plays, so the
-                      // cut never waits on the network (1s wasn't enough over the
-                      // internet: playback stalled at every part).
-                      premountFor={5 * fps}
-                    >
-                      <PartLayer
-                        videoUrl={videoUrl}
-                        trimBefore={Math.round((part.startMs / 1000) * fps)}
-                        speed={part.speed}
-                        lengthMs={part.outEndMs - part.outStartMs}
-                        enter={
-                          i > 0
-                            ? { ...part.transition, durationMs: part.inMs }
-                            : null
-                        }
-                        exit={
-                          next
-                            ? { ...next.transition, durationMs: next.inMs }
-                            : null
-                        }
-                        irisAt={{ x: pose.focusX, y: pose.focusY }}
-                        unit={unit}
-                        onVideoError={onVideoError}
-                        partFrom={from}
-                        magnifiers={magnifiers}
-                        frameWidth={frameWidth}
-                        frameHeight={frameHeight}
-                      />
-                    </Sequence>
-                  )
-                })}
-              </>
-            )}
+                  {magnifiers.length > 0 && (
+                    <PlayerMagnifier
+                      magnifiers={magnifiers}
+                      frame={frameNumber}
+                      frameWidth={frameWidth}
+                      frameHeight={frameHeight}
+                      video={
+                        <PlayerMagnifierVideo
+                          videoUrl={videoUrl}
+                          at={toSource(edit, durationMs, timeMs) / 1000}
+                          speed={speedAt(timeMs)}
+                          playing={playing}
+                        />
+                      }
+                    />
+                  )}
+                </>
+              ) : (
+                <>
+                  {layout.map((part, i) => {
+                    const next = layout[i + 1]
+                    const from = Math.round((part.outStartMs / 1000) * fps)
+                    const to = Math.round((part.outEndMs / 1000) * fps)
+                    return (
+                      <Sequence
+                        key={part.startMs}
+                        from={from}
+                        durationInFrames={Math.max(1, to - from)}
+                        // Loads and seeks each part's video 5s before it plays, so the
+                        // cut never waits on the network (1s wasn't enough over the
+                        // internet: playback stalled at every part).
+                        premountFor={5 * fps}
+                      >
+                        <PartLayer
+                          videoUrl={videoUrl}
+                          trimBefore={Math.round((part.startMs / 1000) * fps)}
+                          speed={part.speed}
+                          lengthMs={part.outEndMs - part.outStartMs}
+                          enter={
+                            i > 0
+                              ? { ...part.transition, durationMs: part.inMs }
+                              : null
+                          }
+                          exit={
+                            next
+                              ? { ...next.transition, durationMs: next.inMs }
+                              : null
+                          }
+                          irisAt={{ x: pose.focusX, y: pose.focusY }}
+                          unit={unit}
+                          onVideoError={onVideoError}
+                          partFrom={from}
+                          magnifiers={magnifiers}
+                          frameWidth={frameWidth}
+                          frameHeight={frameHeight}
+                        />
+                      </Sequence>
+                    )
+                  })}
+                </>
+              )}
+            </div>
             <BlurLayers layers={depthLayers} testId="depth-of-field" />
             <BlurLayers layers={edgeLayers} testId="progressive-blur" />
             {!flat && (

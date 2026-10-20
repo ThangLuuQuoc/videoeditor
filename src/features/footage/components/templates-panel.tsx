@@ -2,7 +2,7 @@
 
 import { CheckIcon, SparklesIcon } from "lucide-react"
 
-import type { Recipe, RecipeTarget } from "@/shared/motion"
+import type { Recipe, RecipeTarget, Story } from "@/shared/motion"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
 
@@ -10,6 +10,7 @@ import { templates, type TemplateId } from "../lib/templates"
 import { PanelHeading } from "./editor-panels"
 import { RecipeForm } from "./recipe-form"
 import { RecipePictures } from "./recipe-pictures"
+import { StoryForm } from "./story-form"
 
 /**
  * Templates (§7.16): a finished style in one click, or an "AI first cut"
@@ -21,23 +22,27 @@ export function TemplatesPanel({
   hasMoments,
   isDirecting,
   recipe,
+  story,
   voiceSetUp,
   voiceIsTest,
   pictures,
   onApply,
   onFirstCut,
   onBuildRecipe,
+  onBuildStory,
 }: {
   activeTemplate: string | null
   hasMoments: boolean
   isDirecting: boolean
   recipe: Recipe | null
+  story: Story | null
   /** The server has a voice (the recipe's steps can be read aloud). */
   voiceSetUp: boolean
   voiceIsTest: boolean
   onApply: (id: TemplateId) => void
   onFirstCut: (id: TemplateId) => void
   onBuildRecipe: (recipe: Recipe) => Promise<string | null>
+  onBuildStory: (story: Story) => Promise<string | null>
   /** Pictures for the built recipe's ingredients and steps. */
   pictures: {
     urls: Record<string, string>
@@ -154,6 +159,19 @@ export function TemplatesPanel({
               onRemove={pictures.onRemove}
             />
           )}
+        {activeTemplate === "story-video" && (
+          <p className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+            This clip is a chapter of a timeline across a whole video. Change
+            the story from the video&apos;s Template button, so the chapters
+            stay in order across its clips.
+          </p>
+        )}
+        <StoryForm
+          story={story}
+          active={activeTemplate === "story"}
+          disabled={isDirecting || activeTemplate === "story-video"}
+          onBuild={onBuildStory}
+        />
       </section>
     </div>
   )

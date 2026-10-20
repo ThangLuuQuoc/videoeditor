@@ -70,7 +70,7 @@ describe.runIf(hasStorage)("processFootage job", () => {
         kitId: kit.id,
         name: "Demo",
         sizeBytes: 1,
-        contentType: "video/mp4",
+        contentType: contentType as "video/mp4",
         source: "UPLOAD",
       }
     )
@@ -146,6 +146,50 @@ describe.runIf(hasStorage)("processFootage job", () => {
       expect.objectContaining({ name: "footage.analyze" }),
       { footageId },
       { singletonKey: footageId }
+    )
+  })
+
+  it("turns a photo into a 6 s still clip (V3 M12 timeline)", async () => {
+    // An odd-sized JPEG: the clip still gets even sides for H.264.
+    const file = join(dir, "photo.jpg")
+    await media.runFfmpeg(
+      ["-f", "lavfi", "-i", "testsrc=size=1201x801", "-frames:v", "1", file],
+      { timeoutMs: 30_000 }
+    )
+    const footageId = await clipFrom(file, "image/jpeg")
+
+    await processFootage({ footageId }, attempt)
+
+    const clip = await db.footage.findUniqueOrThrow({
+      where: { id: footageId },
+    })
+    expect(clip.status).toBe("READY")
+    expect(clip.durationMs).toBeGreaterThan(5900)
+    expect(clip.durationMs).toBeLessThan(6100)
+    expect(clip.width! % 2).toBe(0)
+    expect(clip.height! % 2).toBe(0)
+    const out = join(dir, "photo.mp4")
+    await storage.downloadToFile(clip.videoKey ?? "", out)
+    expect(await media.probeVideo(out)).toMatchObject({
+      codec: "h264",
+      hasAudio: false,
+    })
+    expect(await storage.fileSize(clip.posterKey ?? "")).toBeGreaterThan(0)
+  })
+
+  it("fails a photo that isn't one, saying what to upload", async () => {
+    const file = join(dir, "fake.png")
+    await writeFile(file, "not a picture")
+    const footageId = await clipFrom(file, "image/png")
+
+    await processFootage({ footageId }, attempt)
+
+    const clip = await db.footage.findUniqueOrThrow({
+      where: { id: footageId },
+    })
+    expect(clip.status).toBe("FAILED")
+    expect(clip.errorMessage).toBe(
+      "We couldn’t read this photo. Upload a JPEG, PNG or WebP image."
     )
   })
 

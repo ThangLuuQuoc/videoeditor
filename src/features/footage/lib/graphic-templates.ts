@@ -118,14 +118,20 @@ export function newGraphic(
             ? "Ingredients"
             : kind === "step"
               ? "Whisk the eggs"
-              : "",
+              : kind === "milestone"
+                ? "1998"
+                : "",
     secondary: isLayoutGraphic(kind)
       ? "One line that backs it up"
       : kind === "list"
         ? "2 eggs\n200 g flour\n1 tbsp butter"
         : kind === "step"
           ? "Step 1"
-          : "",
+          : kind === "milestone"
+            ? "Where it all began"
+            : kind === "progress"
+              ? "Beginnings\nGrowth\nToday"
+              : "",
     side: kind === "split" ? "left" : "auto",
     track: 0,
     at: null,
@@ -136,6 +142,7 @@ export function newGraphic(
     secondaryColor: null,
     backgroundColor: null,
     images: [],
+    progress: null,
     ...patch,
   }
 }

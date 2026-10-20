@@ -58,11 +58,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import {
   appendProjectClip,
   applyVideoRecipe,
+  applyVideoStory,
   applyVideoTemplate,
   saveProjectClips,
   undoVideoTemplate,
 } from "../actions"
-import type { Recipe } from "@/shared/motion"
+import type { Recipe, Story } from "@/shared/motion"
 
 import type { ProjectDetail } from "../queries"
 import { AddClipsDialog, type KitClip } from "./add-clips-dialog"
@@ -207,6 +208,36 @@ export function ProjectEditor({
       type: "success",
       title: `Recipe on ${applied} ${applied === 1 ? "clip" : "clips"}`,
       description: `${recipe.dish}${recipe.voiced ? ", read aloud" : ""}. Undo template puts everything back.`,
+    })
+    return null
+  }
+
+  /** The timeline across every clip (M12): a problem in words, or null. */
+  async function buildStory(story: Story) {
+    if (pending.current > 0 || conflicted.current) {
+      return "Wait for the video to save, then try again."
+    }
+    setTemplateBusy(true)
+    const result = await applyVideoStory({
+      projectId: project.id,
+      baseVersion: version.current,
+      story,
+    })
+    setTemplateBusy(false)
+    if (!result.ok) {
+      if (result.error.code === "CONFLICT") {
+        conflicted.current = true
+        setConflict("open")
+        return null
+      }
+      return result.error.message
+    }
+    afterTemplate(result.data)
+    const { applied } = result.data
+    toast.add({
+      type: "success",
+      title: `Timeline on ${applied} ${applied === 1 ? "clip" : "clips"}`,
+      description: `${story.title}. Undo template puts everything back.`,
     })
     return null
   }
@@ -495,6 +526,12 @@ export function ProjectEditor({
               voiceIsTest={voiceIsTest}
               onApply={applyTemplate}
               onBuildRecipe={buildRecipe}
+              story={
+                project.clips[0]?.presentation.template === "story-video"
+                  ? project.clips[0].presentation.story
+                  : null
+              }
+              onBuildStory={buildStory}
               onUndo={() => void undoTemplate()}
             />
             <DeleteProjectButton projectId={project.id} name={project.name} />

@@ -114,6 +114,7 @@ export async function getFootageForProcessing(footageId: string) {
       brandKitId: true,
       status: true,
       originalKey: true,
+      contentType: true,
     },
   })
 }

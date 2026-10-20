@@ -5,10 +5,11 @@ import { useState } from "react"
 
 import {
   RecipeForm,
+  StoryForm,
   templates,
   type TemplateId,
 } from "@/features/footage/client"
-import type { Recipe } from "@/shared/motion"
+import type { Recipe, Story } from "@/shared/motion"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 import {
@@ -38,10 +39,12 @@ export function VideoTemplateDialog({
   current,
   busy,
   recipe,
+  story,
   voiceSetUp,
   voiceIsTest,
   onApply,
   onBuildRecipe,
+  onBuildStory,
   onUndo,
 }: {
   /** The video's last template, while it can be undone. */
@@ -49,6 +52,8 @@ export function VideoTemplateDialog({
   busy: boolean
   /** The recipe the video was last built from, to start the form with. */
   recipe: Recipe | null
+  /** The story the video was last built from. */
+  story: Story | null
   /** The server has a voice (the recipe's steps can be read aloud). */
   voiceSetUp: boolean
   voiceIsTest: boolean
@@ -56,18 +61,25 @@ export function VideoTemplateDialog({
   onApply: (templateId: TemplateId, withAi: boolean) => Promise<boolean>
   /** Resolves with a problem to show, or null when built (it closes). */
   onBuildRecipe: (recipe: Recipe) => Promise<string | null>
+  onBuildStory: (story: Story) => Promise<string | null>
   onUndo: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const [kind, setKind] = useState<"style" | "recipe">(
-    current?.templateId === "recipe" ? "recipe" : "style"
+  const [kind, setKind] = useState<"style" | "recipe" | "story">(
+    current?.templateId === "recipe"
+      ? "recipe"
+      : current?.templateId === "story"
+        ? "story"
+        : "style"
   )
   const [picked, setPicked] = useState<TemplateId>("launch")
   const [withAi, setWithAi] = useState(false)
   const currentTitle =
     current?.templateId === "recipe"
       ? "Recipe"
-      : templates.find((t) => t.id === current?.templateId)?.title
+      : current?.templateId === "story"
+        ? "Timeline"
+        : templates.find((t) => t.id === current?.templateId)?.title
 
   return (
     <>
@@ -105,16 +117,18 @@ export function VideoTemplateDialog({
             <DialogDescription>
               {kind === "style"
                 ? "Sets the camera, cuts, text style, lens, end card and the transitions between clips. Clips without key moments stay as they are."
-                : "Your recipe across the clips, in order: the title and ingredients on the first, the steps through the rest, the end card on the last."}
+                : kind === "recipe"
+                  ? "Your recipe across the clips, in order: the title and ingredients on the first, the steps through the rest, the end card on the last."
+                  : "Your story across the clips, a chapter per clip when they match: dates and titles as each begins, a chapter bar along the bottom, photos zooming slowly."}
             </DialogDescription>
           </DialogHeader>
           <ToggleGroup
             aria-label="Kind of template"
             variant="outline"
-            className="grid grid-cols-2 gap-1"
+            className="grid grid-cols-3 gap-1"
             value={[kind]}
             onValueChange={(values) => {
-              const next = values[0] as "style" | "recipe" | undefined
+              const next = values[0] as "style" | "recipe" | "story" | undefined
               if (next) setKind(next)
             }}
           >
@@ -124,8 +138,23 @@ export function VideoTemplateDialog({
             <ToggleGroupItem value="recipe" className="w-full">
               Recipe
             </ToggleGroupItem>
+            <ToggleGroupItem value="story" className="w-full">
+              Timeline
+            </ToggleGroupItem>
           </ToggleGroup>
-          {kind === "recipe" ? (
+          {kind === "story" ? (
+            <StoryForm
+              story={story}
+              active={current?.templateId === "story"}
+              disabled={busy}
+              across="video"
+              onBuild={async (next) => {
+                const problem = await onBuildStory(next)
+                if (!problem) setOpen(false)
+                return problem
+              }}
+            />
+          ) : kind === "recipe" ? (
             <RecipeForm
               recipe={recipe}
               active={current?.templateId === "recipe"}

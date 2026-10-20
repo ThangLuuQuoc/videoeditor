@@ -23,7 +23,9 @@ test("a new kit points at its footage, one click away", async ({
   await expect(page.getByText("Next: add your footage")).toBeVisible()
   await page.getByRole("link", { name: "Add footage" }).click()
   await expect(page).toHaveURL(/\/brand-kits\/[^/]+\/footage$/)
-  await expect(page.getByRole("button", { name: "Upload video" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Upload video or photo" })
+  ).toBeVisible()
   expect(consoleProblems).toEqual([])
 })
 

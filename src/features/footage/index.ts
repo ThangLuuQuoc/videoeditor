@@ -36,6 +36,13 @@ export {
 } from "./lib/recipe-template"
 export { recipeFailure } from "./lib/recipe-messages"
 export {
+  buildStoryClip,
+  layoutStory,
+  storyFailure,
+  type StorySlot,
+} from "./lib/story-template"
+export { isPhotoType } from "./schema"
+export {
   speakLines,
   storeVoicedLine,
   voiceLinks,

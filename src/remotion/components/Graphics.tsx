@@ -9,6 +9,7 @@ import {
 import {
   calloutSide,
   countNumbers,
+  isAnchoredGraphic,
   isLayoutGraphic,
   keycaps,
   readableOn,
@@ -699,7 +700,7 @@ function StageGraphicPlaced(
 ) {
   const { item } = props
   const at =
-    item.kind === "end-card" || isLayoutGraphic(item.kind) ? null : item.at
+    isAnchoredGraphic(item.kind) || isLayoutGraphic(item.kind) ? null : item.at
   return (
     <div
       style={{
@@ -1202,6 +1203,183 @@ function StageGraphic({
               />
             </div>
           )}
+        </div>
+      )
+    }
+    case "milestone": {
+      const [title, ...rest] = item.secondary.split("\n")
+      const line = rest.join(" ").trim()
+      const ink = item.textColor ?? colors.accent
+      const content = (
+        <div
+          {...id}
+          style={spot(placed, {
+            position: "absolute",
+            left: "6%",
+            bottom: "15%",
+            maxWidth: 0.82 * width,
+            opacity: shown,
+          })}
+        >
+          <div
+            style={{
+              fontFamily: fonts.heading,
+              fontWeight: fonts.headingWeight,
+              fontSize: 11 * su * item.textSize,
+              lineHeight: 0.95,
+              letterSpacing: "-0.02em",
+              color: ink,
+              fontVariantNumeric: "tabular-nums",
+              textShadow: "0 0.04em 0.3em rgb(0 0 0 / 0.35)",
+              ...rise(0, 14),
+            }}
+          >
+            {countNumbers(item.text || "1998", easeOutCubic(frame / 20)) ??
+              (item.text || "1998")}
+          </div>
+          {title && (
+            <div
+              style={{
+                fontFamily: fonts.heading,
+                fontWeight: fonts.headingWeight,
+                fontSize: 4.4 * su * item.secondarySize,
+                lineHeight: 1.1,
+                marginTop: 1.2 * su,
+                color: item.secondaryColor ?? "#ffffff",
+                textShadow: "0 0.04em 0.35em rgb(0 0 0 / 0.5)",
+                ...rise(6),
+              }}
+            >
+              {title}
+            </div>
+          )}
+          {line && (
+            <div
+              style={{
+                fontFamily: fonts.body,
+                fontSize: 2.6 * su * item.secondarySize,
+                lineHeight: 1.3,
+                marginTop: 0.8 * su,
+                color: item.secondaryColor ?? "rgb(255 255 255 / 0.88)",
+                textShadow: "0 0.04em 0.3em rgb(0 0 0 / 0.5)",
+                ...rise(10),
+              }}
+            >
+              {line}
+            </div>
+          )}
+        </div>
+      )
+      if (placed) return content
+      // Words over a photo: a soft dark fade behind the bottom of the stage.
+      return (
+        <>
+          <AbsoluteFill
+            style={{
+              background:
+                item.backgroundColor ??
+                "linear-gradient(to top, rgb(0 0 0 / 0.6), rgb(0 0 0 / 0) 55%)",
+              opacity: shown,
+            }}
+          />
+          {content}
+        </>
+      )
+    }
+    case "progress": {
+      const chapters = item.secondary
+        .split("\n")
+        .map((chapter) => chapter.trim())
+        .filter(Boolean)
+      const count = Math.max(1, chapters.length)
+      const span = item.progress ?? { current: 0, from: 0, to: 1 }
+      const fill =
+        span.from + (span.to - span.from) * clamp01(frame / Math.max(1, frames))
+      const current = chapters[Math.min(span.current, count - 1)] ?? ""
+      const bar = 0.7 * su
+      return (
+        <div
+          {...id}
+          style={{
+            position: "absolute",
+            left: "6%",
+            right: "6%",
+            bottom: "6%",
+            opacity: presence(frame, frames, 6),
+          }}
+        >
+          {current && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 1.2 * su,
+                marginBottom: 1.2 * su,
+                fontFamily: fonts.body,
+                textShadow: "0 0.04em 0.3em rgb(0 0 0 / 0.6)",
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: 2.6 * su * item.secondarySize,
+                  color: item.secondaryColor ?? "#ffffff",
+                }}
+              >
+                {current}
+              </span>
+              <span
+                style={{
+                  fontSize: 2 * su,
+                  color: "rgb(255 255 255 / 0.75)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {Math.min(span.current, count - 1) + 1}/{count}
+              </span>
+            </div>
+          )}
+          <div
+            style={{
+              position: "relative",
+              height: bar,
+              borderRadius: bar,
+              background: item.backgroundColor ?? "rgb(255 255 255 / 0.3)",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: `${(fill * 100).toFixed(2)}%`,
+                borderRadius: bar,
+                background: colors.accent,
+              }}
+            />
+            {/* A notch where each chapter starts. */}
+            {chapters.slice(1).map((_, index) => {
+              const at = (index + 1) / count
+              return (
+                <span
+                  key={index}
+                  style={{
+                    position: "absolute",
+                    left: `${(at * 100).toFixed(2)}%`,
+                    top: "50%",
+                    width: 1.6 * bar,
+                    height: 1.6 * bar,
+                    borderRadius: 999,
+                    translate: "-50% -50%",
+                    background:
+                      fill >= at ? colors.accent : "rgb(255 255 255 / 0.7)",
+                    boxShadow: "0 0 0 2px rgb(0 0 0 / 0.25)",
+                  }}
+                />
+              )
+            })}
+          </div>
         </div>
       )
     }

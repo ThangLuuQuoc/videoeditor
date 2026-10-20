@@ -2,8 +2,10 @@ import { z } from "zod"
 
 import { clipEditSchema } from "./edit"
 import { graphicItemSchema, graphicLimits } from "./graphics"
+import { kenBurnsModes } from "./ken-burns"
 import { lensSchema } from "./lens"
 import { recipeSchema } from "./recipe"
+import { storySchema } from "./story"
 import { textItemSchema, textLimits, textStyleSchema } from "./text"
 import { voiceSchema } from "./voice"
 
@@ -85,6 +87,8 @@ export const presentationSchema = z.object({
    * would show. Styles saved before it existed read as on.
    */
   motionBlur: z.boolean().default(true),
+  /** A slow zoom across the clip, for photos (V3 M12); off by default. */
+  kenBurns: z.enum(kenBurnsModes).default("off"),
   /** Cuts, speed and transitions; none = the whole clip as recorded. */
   edit: clipEditSchema.default({ parts: [] }),
   /** The video's text style, and its text items. */
@@ -97,6 +101,8 @@ export const presentationSchema = z.object({
   template: z.string().max(40).nullable().default(null),
   /** The recipe the recipe template was built from (M12); null = none. */
   recipe: recipeSchema.nullable().default(null),
+  /** The story the timeline template was built from (M12); null = none. */
+  story: storySchema.nullable().default(null),
   /** Depth of field and progressive blur. */
   lens: lensSchema.default({
     depthOfField: { enabled: false, fStop: 2.8, maxBlur: 0.6 },

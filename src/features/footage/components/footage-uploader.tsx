@@ -15,7 +15,10 @@ import { footageTypes } from "../schema"
 
 const accept = Object.keys(footageTypes).join(",")
 
-/** "Upload video": checks the file here first, then sends it to storage. */
+/**
+ * "Upload video or photo": checks the file here first, then sends it to
+ * storage. A photo becomes a still clip.
+ */
 export function FootageUploader({
   kitId,
   maxBytes,
@@ -40,7 +43,10 @@ export function FootageUploader({
     // Instant feedback; the server checks the same rules again.
     const type = videoTypeOf(file)
     if (!(type in footageTypes)) {
-      toast.add({ type: "error", title: "Upload an MP4, MOV or WebM video." })
+      toast.add({
+        type: "error",
+        title: "Upload a video (MP4, MOV, WebM) or a photo (JPEG, PNG, WebP).",
+      })
       return
     }
     if (file.size > maxBytes) {
@@ -87,7 +93,7 @@ export function FootageUploader({
         accept={accept}
         className="sr-only"
         tabIndex={-1}
-        aria-label="Video file"
+        aria-label="Video or photo file"
         data-testid="footage-file"
         onChange={(event) => {
           const file = event.target.files?.[0]
@@ -101,7 +107,7 @@ export function FootageUploader({
         onClick={() => inputRef.current?.click()}
       >
         <UploadIcon data-icon="inline-start" />
-        Upload video
+        Upload video or photo
       </Button>
       {upload && (
         <div className="flex basis-full items-end gap-2">

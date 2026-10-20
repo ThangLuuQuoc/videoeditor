@@ -5,6 +5,7 @@ import {
   projectClipSchema,
   projectLimits,
   recipeSchema,
+  storySchema,
 } from "@/shared/motion"
 
 const idSchema = z.string().min(1).max(64)
@@ -66,6 +67,13 @@ export const applyVideoRecipeSchema = z.object({
   projectId: idSchema,
   baseVersion: z.number().int().min(0),
   recipe: recipeSchema,
+})
+
+/** The timeline template across every clip of a video (V3 M12). */
+export const applyVideoStorySchema = z.object({
+  projectId: idSchema,
+  baseVersion: z.number().int().min(0),
+  story: storySchema,
 })
 
 /** Undo the video's last template, from the version it was seen at. */

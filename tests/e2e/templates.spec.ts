@@ -258,7 +258,9 @@ test("a recipe read aloud: a voiceover line for each step", async ({
     .getByRole("textbox", { name: "Steps" })
     .fill("Boil the noodles\nToss with garlic butter")
   await form.getByRole("switch", { name: "Read the steps aloud" }).click()
-  await expect(form.getByText("Each lasts as long as it takes to say.")).toBeVisible()
+  await expect(
+    form.getByText("Each lasts as long as it takes to say.")
+  ).toBeVisible()
   await form.getByRole("button", { name: "Build recipe video" }).click()
   await expect(page.getByText("Recipe video built")).toBeVisible({
     timeout: 30_000,
@@ -331,5 +333,89 @@ test("a recipe across a video's clips, read aloud, undone in one step", async ({
   await expect(page.getByRole("button", { name: "Undo template" })).toHaveCount(
     0
   )
+  expect(consoleProblems).toEqual([])
+})
+
+test("photos become clips, and a timeline runs across them, undone in one step", async ({
+  page,
+  signedInUser: _user,
+  consoleProblems,
+}) => {
+  test.skip(!hasStorage, "Needs a bucket (NEON_BRANCH or STORAGE_TESTS)")
+  test.setTimeout(240_000)
+  const garage = await makeTestPicture("Garage.png")
+  const store = await makeTestPicture("Store.png")
+  await createKitByHand(page)
+  await page.getByRole("tab", { name: "Footage" }).click()
+  for (const file of [garage, store]) {
+    await page.getByTestId("footage-file").setInputFiles(file)
+    await expect(page.getByText("Clip uploaded")).toBeVisible({
+      timeout: 30_000,
+    })
+  }
+  for (const name of ["Garage", "Store"]) {
+    await expect(
+      page.getByRole("listitem").filter({ hasText: name }).getByText("Ready")
+    ).toBeVisible({ timeout: 90_000 })
+  }
+
+  // A photo is a 6-second still clip: too short for a whole timeline alone.
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Garage" })
+    .getByRole("link", { name: "Garage" })
+    .click()
+  await page
+    .getByRole("tablist", { name: "Editor tools" })
+    .getByRole("tab", { name: "Templates" })
+    .click()
+  const clipForm = page.getByRole("form", { name: "Timeline" })
+  await clipForm
+    .getByRole("textbox", { name: "Title", exact: true })
+    .fill("Acme")
+  await clipForm
+    .getByRole("textbox", { name: "Chapters" })
+    .fill("1998 | Founded in a garage")
+  await clipForm.getByRole("button", { name: "Build timeline video" }).click()
+  await expect(clipForm.getByRole("alert")).toContainText(
+    "This clip runs 6.0 s"
+  )
+
+  // A video of both photos: a chapter each.
+  await page.goto("/videos")
+  await page.getByRole("button", { name: "New video" }).click()
+  await page.getByRole("textbox", { name: "Name" }).fill("Our story")
+  await page.getByRole("button", { name: "Create video" }).click()
+  await expect(page).toHaveURL(/\/videos\/[^/]+$/, { timeout: 20_000 })
+  await page.getByRole("button", { name: "Choose from footage" }).click()
+  const picker = page.getByRole("list", { name: "Footage to add" })
+  await picker.getByRole("button", { name: /Garage/ }).click()
+  await picker.getByRole("button", { name: /Store/ }).click()
+  await page.getByRole("button", { name: "Add 2 clips" }).click()
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+  await expect(page.getByLabel("Playback position")).toHaveText(
+    "0:00.0 / 0:12.0",
+    { timeout: 60_000 }
+  )
+
+  await page.getByRole("button", { name: "Template" }).click()
+  const dialog = page.getByRole("dialog", { name: "Template for every clip" })
+  await dialog.getByRole("button", { name: "Timeline" }).click()
+  const form = dialog.getByRole("form", { name: "Timeline" })
+  await form
+    .getByRole("textbox", { name: "Title", exact: true })
+    .fill("25 years of Acme")
+  await form
+    .getByRole("textbox", { name: "Chapters" })
+    .fill("1998 | Founded in a garage\n2005 | First store")
+  await expectNoViolations(page)
+  await form.getByRole("button", { name: "Build timeline video" }).click()
+  await expect(page.getByText("Timeline on 2 clips")).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(dialog).toBeHidden()
+
+  await page.getByRole("button", { name: "Undo template" }).click()
+  await expect(page.getByText("Template undone")).toBeVisible()
   expect(consoleProblems).toEqual([])
 })

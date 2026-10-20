@@ -12,12 +12,14 @@ import { clipLimits, tooLongMessage } from "../lib/limits"
 import {
   parseSceneLog,
   pickAutoMarkers,
+  photoArgs,
   posterArgs,
   sceneDetectArgs,
   thumbnailPlan,
   thumbnailStripArgs,
   transcodeArgs,
 } from "../lib/processing"
+import { isPhotoType } from "../schema"
 import {
   failFootage,
   getFootageForProcessing,
@@ -35,6 +37,7 @@ const messages = {
     "Your footage is shorter than a second. Record or upload a longer clip.",
   convertFailed:
     "We couldn’t convert this video. Try exporting it again as MP4 (H.264) and upload that.",
+  notPhoto: "We couldn’t read this photo. Upload a JPEG, PNG or WebP image.",
   retriesExhausted:
     "We couldn’t process this clip. Try uploading it again in a few minutes.",
 }
@@ -60,19 +63,28 @@ export async function processFootage(
     const original = join(dir, "original")
     await downloadToFile(clip.originalKey, original)
 
-    const info = await probeVideo(original, { signal })
-    if (!info) throw new UnusableFootage(messages.notVideo)
     const { maxDurationSeconds } = clipLimits
     // A second of slack for container rounding.
     const isTooLong = (ms: number) => ms > maxDurationSeconds * 1000 + 1000
-    // Browser recordings (MediaRecorder WebM) often carry no duration, so
-    // the length is checked again on the converted file below.
-    if (isTooLong(info.durationMs)) {
-      throw new UnusableFootage(tooLongMessage())
-    }
-
     const video = join(dir, "video.mp4")
-    await convert(transcodeArgs(original, video), minutes(25), signal)
+    if (isPhotoType(clip.contentType)) {
+      // A photo: held still as a short clip (ffmpeg checks it's an image).
+      await convert(
+        photoArgs(original, video),
+        minutes(2),
+        signal,
+        messages.notPhoto
+      )
+    } else {
+      const info = await probeVideo(original, { signal })
+      if (!info) throw new UnusableFootage(messages.notVideo)
+      // Browser recordings (MediaRecorder WebM) often carry no duration, so
+      // the length is checked again on the converted file below.
+      if (isTooLong(info.durationMs)) {
+        throw new UnusableFootage(tooLongMessage())
+      }
+      await convert(transcodeArgs(original, video), minutes(25), signal)
+    }
     const converted = await probeVideo(video, { signal })
     if (!converted) throw new UnusableFootage(messages.convertFailed)
     if (isTooLong(converted.durationMs)) {
@@ -138,13 +150,18 @@ export async function processFootage(
 }
 
 /** ffmpeg failing on a file ffprobe accepted means the file is the problem. */
-async function convert(args: string[], timeoutMs: number, signal: AbortSignal) {
+async function convert(
+  args: string[],
+  timeoutMs: number,
+  signal: AbortSignal,
+  unusable = messages.convertFailed
+) {
   try {
     await runFfmpeg(args, { timeoutMs, signal })
   } catch (error) {
     if (error instanceof MediaToolError && !signal.aborted) {
       console.warn("ffmpeg failed", error.stderr)
-      throw new UnusableFootage(messages.convertFailed)
+      throw new UnusableFootage(unusable)
     }
     throw error
   }

@@ -8,6 +8,7 @@ export { stageFontsFor } from "./lib/stage-fonts"
 export { FootageUploader } from "./components/footage-uploader"
 export { ScreenRecorder } from "./components/screen-recorder"
 export { RecipeForm } from "./components/recipe-form"
+export { StoryForm } from "./components/story-form"
 export {
   templateById,
   templateIds,

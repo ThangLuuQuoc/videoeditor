@@ -117,7 +117,8 @@ describe.runIf(hasDatabase)("footage actions", () => {
       ok: false,
       error: {
         code: "VALIDATION",
-        message: "Upload an MP4, MOV or WebM video.",
+        message:
+          "Upload a video (MP4, MOV, WebM) or a photo (JPEG, PNG, WebP).",
       },
     })
     expect(signedFileUpload).not.toHaveBeenCalled()
