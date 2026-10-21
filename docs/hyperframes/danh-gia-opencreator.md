@@ -45,3 +45,30 @@
 2. **#4 font tiếng Việt**: sửa lỗi người dùng nhìn thấy ngay.
 3. **#3 ASR footage**: mở ra phụ đề tự động cho footage có tiếng.
 4. #5–#7 khi làm tiếp M8 và M12. #8 chỉ khi quyết định thêm tính năng dịch video.
+
+## 5. Đề xuất thêm sau khi đọc kỹ README (21/10/2026)
+
+Nguồn: README của OpenCreator (các mục "Creator Tools", "Creation Templates", "Schedules and Dedicated Task Threads", "Models Supported"). Bảng dưới gồm những ý **chưa có** trong mục 3, xếp theo giá trị so với công sức.
+
+| # | Ý từ OpenCreator | Áp vào ReelPilot | Vì sao đáng làm | Công sức |
+| :-- | :--- | :--- | :--- | :--- |
+| A | **Dịch video** (phụ đề song ngữ, lồng tiếng) | Nút "Bản tiếng Anh" (hoặc ngôn ngữ khác) cho video công thức và timeline: dịch chữ, đọc lại bằng giọng mới, render lại thành một phiên bản | Công thức và câu chuyện đã là dữ liệu có cấu trúc (`presentation.recipe`, `presentation.story`), nên **không cần nhận dạng giọng nói**: chỉ dịch chữ rồi dựng lại. OpenCreator phải nghe video mới làm được việc này | Thấp |
+| B | **Tạo ảnh bìa** (vài phương án để so) + **viết bài đăng** (Xiaohongshu) | Mỗi lần export kèm **bộ đăng bài**: ảnh bìa (một frame + tiêu đề, 3 phương án), tiêu đề, mô tả, hashtag theo nền tảng; trang chia sẻ dùng ảnh bìa làm ảnh xem trước | Export hiện chỉ có MP4 và link chia sẻ; đây là việc người dùng phải làm tay trước khi đăng. Ảnh bìa render bằng chính HyperFrames (một frame tĩnh) | Thấp – vừa |
+| C | **Thư viện template** có kết quả mẫu, cài đặt, tag, tác giả | Mỗi template có video xem trước; thêm **"Lưu bản chỉnh sửa này thành template của tôi"** (theo brand kit) | Template hiện chỉ có một dòng mô tả. Template riêng của brand giúp người dùng quay lại dùng tiếp | Vừa |
+| D | **Chạy hàng loạt và lên lịch** (mỗi lịch một luồng, chạy lần lượt) | Dán bảng hoặc CSV gồm nhiều công thức hay nhiều dòng dữ liệu, app tạo ra nhiều video và xếp hàng render; sau đó có thể lên lịch | Rất hợp kênh nấu ăn và **template data** sắp làm. Template đều là hàm thuần nên chạy hàng loạt dễ. Trùng với M10 (export hàng loạt) | Vừa |
+| E | **Kịch bản video ngắn** theo nền tảng, độ dài, giọng điệu | "Lên kế hoạch trước khi quay": AI viết danh sách cảnh cần quay rồi **tự điền form** công thức hoặc timeline (dán link hay đoạn văn là ra công thức hoặc các chương) | Gỡ chỗ khó nhất là bắt đầu từ trang trắng; mở rộng việc "AI tách công thức" đã có trong kế hoạch M12 | Thấp – vừa |
+| F | **Hình minh họa giữ nhân vật và phong cách nhất quán** (Stick Figure Animation) | Ảnh AI cho công thức (M12 bước 1b) dùng chung một mô tả phong cách và một ảnh tham chiếu, để mọi ảnh trong một video cùng tông | Ảnh tạo riêng lẻ dễ lệch tông nhau. Nên đưa vào trước khi chốt Q7 | Thấp |
+| G | **Giao diện 43 ngôn ngữ** | Giao diện ReelPilot bằng **tiếng Việt** (i18n) | Q2 chọn Việt Nam là thị trường đầu tiên, nhưng giao diện hiện toàn tiếng Anh | Vừa |
+
+**Để sau hoặc không làm:**
+- **Tải video từ nền tảng** (YouTube, TikTok…, dùng yt-dlp): vướng điều khoản và bản quyền. Nếu làm, chỉ cho nhập video của chính người dùng.
+- **Tạo video bằng AI** (Seedance, Kling, Veo) để lấp clip thiếu: chi phí cao; chờ sau Q7.
+- **Chỉnh video bằng trò chuyện với agent:** đã có AI director (`directEdit`); nâng lên thành hội thoại khi có nhu cầu.
+- **Trình sửa phụ đề có dạng sóng âm, lưu nhiều phiên bản:** làm cùng mục #3 (phụ đề từ tiếng gốc) ở trên.
+
+**Thứ tự đề xuất** (đã đưa vào `ke-hoach-v3.md`, M13):
+1. **A** bản dịch + **B** bộ đăng bài: ít công, người dùng thấy giá trị ngay.
+2. **E** AI điền form công thức hoặc timeline.
+3. **D** hàng loạt, làm cùng template **data** (M12).
+4. **F** đưa vào bước 1b khi chốt Q7.
+5. **C** thư viện template và **G** giao diện tiếng Việt: việc nền tảng, sau M12.

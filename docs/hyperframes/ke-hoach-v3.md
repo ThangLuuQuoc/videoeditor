@@ -17,6 +17,7 @@
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
 | M10, M11 | chưa bắt đầu |
 | M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); **ảnh (1b) ✅** với provider `test`; **đọc các bước + công thức cho cả video (1c) ✅**; **timeline (bước 2) ✅** (clip ảnh, Ken Burns, mốc thời gian, thanh chương); data, làm đẹp chưa làm |
+| M13 Ý từ OpenCreator | chưa bắt đầu (thêm 21/10): bản dịch, bộ đăng bài, AI điền form, hàng loạt, ảnh AI cùng tông, thư viện template, giao diện tiếng Việt |
 
 Chi tiết từng hạng mục: `README.md` mục 2.
 
@@ -189,6 +190,22 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 
 **Xong khi:** từ một clip nấu ăn và một công thức, 1 thao tác cho ra video 9:16 có tiêu đề, nguyên liệu, từng bước và end card; preview và export giống nhau; hoàn tác một bước; có test unit + Playwright.
 
+### M13 — Ý lấy từ OpenCreator · *thêm 21/10/2026, chi tiết và lý do: `danh-gia-opencreator.md` mục 5*
+
+Theo thứ tự đề xuất (mã A–G là mã trong tài liệu đó):
+
+1. **Bản dịch cho video công thức và timeline (A)** · ≈ 3–4 ngày. Nút "Bản tiếng Anh": dịch `presentation.recipe` hoặc `presentation.story` bằng AI (adapter text đã có), đọc lại bằng giọng mới nếu video có lời đọc, dựng lại bằng chính template rồi render thành một phiên bản. Không cần nhận dạng giọng nói, vì chữ đã có cấu trúc.
+   - **Xong khi:** từ một video công thức tiếng Việt có lời đọc, một thao tác ra bản tiếng Anh (chữ trên thẻ, nhãn "Step", lời đọc); test unit + export thật.
+2. **Bộ đăng bài khi export (B)** · ≈ 3–4 ngày. Ảnh bìa: render một frame tĩnh bằng HyperFrames với tiêu đề lớn, 3 phương án (frame khác nhau hoặc bố cục khác) để chọn; tiêu đề, mô tả, hashtag theo nền tảng (TikTok, Reels, YouTube Shorts) bằng AI; trang chia sẻ dùng ảnh bìa cho `og:image`.
+   - **Xong khi:** hộp thoại export có tab "Đăng bài" với ảnh bìa tải về được và chữ copy được; Playwright.
+3. **AI điền form (E)** · ≈ 2–3 ngày. Dán đoạn văn hoặc link công thức (hay câu chuyện) thì AI trả về đúng schema `recipeSchema` hoặc `storySchema` để điền form; kèm danh sách cảnh nên quay. Giới hạn số lần mỗi ngày như các tính năng AI khác.
+4. **Hàng loạt (D)** · ≈ 1 tuần, làm cùng template **data** của M12. Dán bảng hoặc CSV, mỗi dòng ra một video (công thức hoặc dữ liệu), render xếp hàng một job một lúc (`RENDER_WORKERS=1`); sau đó mới tính lên lịch.
+5. **Ảnh AI cùng tông (F)** · ≈ 1 ngày, gộp vào M12 bước 1b khi chốt Q7: một mô tả phong cách chung và (tuỳ provider) một ảnh tham chiếu cho mọi ảnh của một video.
+6. **Thư viện template (C)** · ≈ 1 tuần, sau M12: video xem trước cho từng template (render sẵn), tag; "Lưu thành template của tôi" theo brand kit.
+7. **Giao diện tiếng Việt (G)** · ≈ 1–2 tuần, sau M12: tách chuỗi giao diện, có tiếng Việt và tiếng Anh (Q2).
+
+Để sau: tải video từ nền tảng (điều khoản), tạo video bằng AI (chi phí, chờ Q7), chỉnh video bằng hội thoại, trình sửa phụ đề có dạng sóng âm (đi cùng phụ đề từ tiếng gốc).
+
 ### Sau V3 (chưa xếp lịch)
 Đăng thẳng lên tài khoản quảng cáo; extension Chrome bắt click; thanh toán (build plan §2); mời thành viên; bản địa hoá giao diện; render phân tán (`@hyperframes/aws-lambda`/`gcp-cloud-run`) khi một VPS không đủ.
 
@@ -237,3 +254,4 @@ Thêm theo milestone:
 4. ~~M6: thêm khung 4:5.~~ ✅
 5. ~~Thiết kế dữ liệu template cho M8 (zod trong `shared/motion`) và lấy ý kiến chủ dự án về 4 template mẫu.~~ ✅ (M8 xong)
 6. ~~M12 bước 1: template nấu ăn~~ ✅, ~~bước 1b ảnh~~ ✅ (provider `test`; chốt Q7 để bật ảnh thật). ~~áp công thức cho cả video, bước làm lời đọc~~ ✅; ~~timeline~~ ✅; tiếp theo → data → làm đẹp. Sau đó M10, M11. Còn mở: provider giọng đọc thật (Q5), nhạc nền, video thật dài để đo (mục 3), thu nhỏ image Docker (4,58 GB).
+7. **M13 (ý từ OpenCreator, thêm 21/10):** bản dịch (A) và bộ đăng bài (B) trước, rồi AI điền form (E), hàng loạt (D) cùng template data; ảnh AI cùng tông (F) khi chốt Q7; thư viện template (C) và giao diện tiếng Việt (G) sau M12. Chi tiết: mục 5, M13.

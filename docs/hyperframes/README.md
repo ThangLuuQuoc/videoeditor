@@ -196,6 +196,7 @@ Theo **`ke-hoach-v3.md`** mục 5 (lộ trình M6–M11) và mục 8 (việc nga
 | `ke-hoach-trien-khai-v2.md` | kế hoạch v2 (đã được thay bằng V3; giữ để tham khảo) |
 | `so-sanh-remotion-hyperframes.md` | so sánh Remotion và HyperFrames, đã đối chiếu docs ngày 16/10/2026 |
 | `bao-cao-giai-doan-0.md` | số đo spike, phát hiện kỹ thuật, kết quả bridge |
+| `danh-gia-opencreator.md` | đánh giá OpenCreator: không lấy làm gốc, các ý nên trích (mục 3) và 7 đề xuất thêm A–G (mục 5, đưa vào M13) |
 | `spike-phase0/` | mã spike: 3 composition mẫu, `bench.sh`, `reelpilot-bridge/` (shim gốc, mã vạch, verify), `e2e/render-sample.mts`, kết quả và ảnh frame |
 
 ### Sinh lại asset của spike
