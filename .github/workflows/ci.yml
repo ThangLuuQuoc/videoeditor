@@ -39,6 +39,7 @@ env:
   # Voiceover with the development tone (no provider account in CI).
   VOICE_PROVIDER: test
   IMAGE_PROVIDER: test
+  AI_TEXT_TEST: "on"
 
 jobs:
   check:

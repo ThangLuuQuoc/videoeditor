@@ -17,6 +17,7 @@ import {
   ShapesIcon,
   SparklesIcon,
   SquareIcon,
+  LanguagesIcon,
   MicIcon,
   TypeIcon,
   Undo2Icon,
@@ -61,6 +62,10 @@ import {
   type Recipe,
   type RecipeTarget,
   type Story,
+  type VersionLanguage,
+  versionLanguageNames,
+  withLanguageVersion,
+  withVersion,
   type VoiceLanguage,
 } from "@/shared/motion"
 import type { StageFonts } from "@/remotion/components/TextLayer"
@@ -80,6 +85,7 @@ import {
   directFootageEdit,
   makeRecipePicture,
   makeVoiceover,
+  translateClip,
   uploadRecipePicture,
   voiceRecipeSteps,
   writeVoiceScript,
@@ -160,6 +166,7 @@ import {
   textSwatches,
 } from "./editor-panels"
 import { MomentsPanel } from "./moments-panel"
+import { LanguagesPanel } from "./languages-panel"
 import { pictureTargetId } from "./recipe-pictures"
 import { applyStory, storyFailure } from "../lib/story-template"
 import { isPhotoType } from "../schema"
@@ -191,6 +198,7 @@ type Tool =
   | "cuts"
   | "text"
   | "voice"
+  | "languages"
   | "graphics"
   | "lens"
   | "style"
@@ -208,6 +216,7 @@ const tools: { id: Tool; label: string; icon: React.ComponentType }[] = [
   { id: "cuts", label: "Cuts", icon: ScissorsIcon },
   { id: "text", label: "Text", icon: TypeIcon },
   { id: "voice", label: "Voice", icon: MicIcon },
+  { id: "languages", label: "Languages", icon: LanguagesIcon },
   { id: "graphics", label: "Graphics", icon: ShapesIcon },
   { id: "lens", label: "Lens", icon: ApertureIcon },
   { id: "style", label: "Style", icon: PaletteIcon },
@@ -380,6 +389,10 @@ export function FootageEditor({
   const [pictureUrls, setPictureUrls] = useState(initialPictureUrls)
   // The picture being made or uploaded ("all" while making the missing).
   const [pictureBusy, setPictureBusy] = useState<string | null>(null)
+  // Languages (M13 A): the version the stage shows, and the one being made.
+  const [previewLanguage, setPreviewLanguage] =
+    useState<VersionLanguage | null>(null)
+  const [translating, setTranslating] = useState<VersionLanguage | null>(null)
   const [isWritingScript, setWritingScript] = useState(false)
   const [isVoicing, setVoicing] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -1375,6 +1388,59 @@ export function FootageEditor({
     return null
   }
 
+  /** The clip in another language (M13 A): one undo step. */
+  async function makeLanguageVersion(language: VersionLanguage) {
+    setTranslating(language)
+    const result = await translateClip({
+      footageId: clip.id,
+      language,
+      presentation: latestHistory.current.present.presentation,
+    })
+    setTranslating(null)
+    if (!result.ok) {
+      toast.add({ type: "error", title: result.error.message })
+      return
+    }
+    setVoiceUrls((urls) => ({ ...urls, ...result.data.urls }))
+    const now = latestHistory.current.present
+    change(
+      {
+        shots: now.shots,
+        presentation: {
+          ...now.presentation,
+          versions: withLanguageVersion(
+            now.presentation.versions,
+            result.data.version
+          ),
+        },
+      },
+      `language:${language}:${Math.random()}`
+    )
+    setPreviewLanguage(language)
+    toast.add({
+      type: "success",
+      title: `${versionLanguageNames[language]} version ready`,
+      description: `Previewing it now. Export picks the language. ${undoKey} undoes it.`,
+    })
+  }
+
+  function removeLanguageVersion(language: VersionLanguage) {
+    const now = latestHistory.current.present
+    if (previewLanguage === language) setPreviewLanguage(null)
+    change(
+      {
+        shots: now.shots,
+        presentation: {
+          ...now.presentation,
+          versions: now.presentation.versions.filter(
+            (version) => version.language !== language
+          ),
+        },
+      },
+      `language:${language}:remove`
+    )
+  }
+
   /** Puts pictures on the recipe and its graphics: one undo step. */
   function applyPictures(
     changes: { target: RecipeTarget; key: string | null }[]
@@ -1736,6 +1802,17 @@ export function FootageEditor({
                   onIdle={treatStillStretches}
                 />
               </TabsContent>
+              <TabsContent value="languages">
+                <LanguagesPanel
+                  presentation={presentation}
+                  preview={previewLanguage}
+                  busy={translating}
+                  readOnly={readOnly}
+                  onTranslate={(language) => void makeLanguageVersion(language)}
+                  onRemove={removeLanguageVersion}
+                  onPreview={setPreviewLanguage}
+                />
+              </TabsContent>
               <TabsContent value="voice">
                 <VoicePanel
                   voice={presentation.voice}
@@ -2000,7 +2077,11 @@ export function FootageEditor({
               posterUrl={links.posterUrl}
               voiceUrls={voiceUrls}
               pictureUrls={pictureUrls}
-              presentation={presentation}
+              presentation={
+                previewLanguage
+                  ? withVersion(presentation, previewLanguage)
+                  : presentation
+              }
               shots={timedShots}
               durationMs={durationMs}
               fonts={stageFonts}

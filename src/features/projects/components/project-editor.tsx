@@ -59,17 +59,24 @@ import {
   appendProjectClip,
   applyVideoRecipe,
   applyVideoStory,
+  translateVideo,
   applyVideoTemplate,
   saveProjectClips,
   undoVideoTemplate,
 } from "../actions"
-import type { Recipe, Story } from "@/shared/motion"
+import {
+  versionLanguageNames,
+  type Recipe,
+  type Story,
+  type VersionLanguage,
+} from "@/shared/motion"
 
 import type { ProjectDetail } from "../queries"
 import { AddClipsDialog, type KitClip } from "./add-clips-dialog"
 import { DeleteProjectButton } from "./delete-project-button"
 import { ProjectPlayer } from "./project-player"
 import { RenameProject } from "./rename-project"
+import { VideoLanguagesDialog } from "./video-languages-dialog"
 import { VideoTemplateDialog } from "./video-template-dialog"
 
 /** One clip in the list, as edited here (the key keeps React's order). */
@@ -133,6 +140,7 @@ export function ProjectEditor({
   const conflicted = useRef(false)
   const pending = useRef(0)
   const [templateBusy, setTemplateBusy] = useState(false)
+  const [translating, setTranslating] = useState<VersionLanguage | null>(null)
 
   /** Takes a template change's new version and joins, then refreshes. */
   function afterTemplate(data: { version: number; transitions: Transition[] }) {
@@ -240,6 +248,33 @@ export function ProjectEditor({
       description: `${story.title}. Undo template puts everything back.`,
     })
     return null
+  }
+
+  /** Every clip in another language (M13 A); true when done. */
+  async function translate(language: VersionLanguage) {
+    if (pending.current > 0 || conflicted.current) return false
+    setTranslating(language)
+    const result = await translateVideo({ projectId: project.id, language })
+    setTranslating(null)
+    if (!result.ok) {
+      if (result.error.code === "CONFLICT") {
+        conflicted.current = true
+        setConflict("open")
+      } else {
+        toast.add({ type: "error", title: result.error.message })
+      }
+      return false
+    }
+    router.refresh()
+    const { translated } = result.data
+    toast.add({
+      type: "success",
+      title: `${versionLanguageNames[language]} version of ${translated} ${
+        translated === 1 ? "clip" : "clips"
+      }`,
+      description: "Export picks the language.",
+    })
+    return true
   }
 
   async function undoTemplate() {
@@ -513,6 +548,11 @@ export function ProjectEditor({
               what="video"
               open={conflict === "open"}
               onOpenChange={(open) => !open && setConflict("dismissed")}
+            />
+            <VideoLanguagesDialog
+              clips={project.clips.map((clip) => clip.presentation)}
+              busy={translating}
+              onTranslate={translate}
             />
             <VideoTemplateDialog
               current={project.template}

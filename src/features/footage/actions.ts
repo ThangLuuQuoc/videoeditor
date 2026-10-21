@@ -35,7 +35,10 @@ import {
 } from "./lib/recipe-pictures"
 import { suggestGraphic, type GraphicSuggestion } from "./lib/suggest-graphic"
 import { writeVoiceScript as writeScript } from "./lib/voice-script"
+import type { LanguageVersion } from "@/shared/motion"
+
 import type { VoicedStep } from "./lib/recipe-template"
+import { translateClip as translate } from "./lib/translate"
 import { voiceLines, voiceSteps } from "./lib/voiceover"
 import { clipMediaUrls, getFootage } from "./queries"
 import {
@@ -45,6 +48,7 @@ import {
   footageIdSchema,
   makeRecipePictureSchema,
   makeVoiceoverSchema,
+  translateClipSchema,
   voiceRecipeStepsSchema,
   moveMarkerSchema,
   requestUploadSchema,
@@ -689,6 +693,53 @@ export async function voiceRecipeSteps(
         footageId: clip.id,
         steps: parsed.data.steps,
         language: parsed.data.language,
+      })
+    )
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/**
+ * The clip in another language (V3 M13 A): its words translated and its
+ * voiceover voiced again. Returns the version (and links to play its
+ * voice); the editor puts it on the clip and saves, as one undo step.
+ */
+export async function translateClip(
+  input: unknown
+): Promise<Result<{ version: LanguageVersion; urls: Record<string, string> }>> {
+  try {
+    const parsed = translateClipSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Check the clip.")
+    const { presentation, language } = parsed.data
+    const lines = presentation.voice?.lines.length ?? 0
+    if (lines > 0 && !voiceEnabled()) throw voiceOff()
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const clip = await getFootage(workspace.id, parsed.data.footageId)
+    if (!clip) throw new AppError("NOT_FOUND", "That clip doesn’t exist.")
+    await consumeRateLimit({
+      key: `translations:${workspace.id}`,
+      limit: aiLimits.translationsPerDay,
+      windowSeconds: 24 * 60 * 60,
+      message: `You’ve translated ${aiLimits.translationsPerDay} clips today. Try again tomorrow.`,
+    })
+    // Each voiced line is a paid text-to-speech call.
+    for (let line = 0; line < lines; line++) {
+      await consumeRateLimit({
+        key: `voice-lines:${workspace.id}`,
+        limit: aiLimits.voiceLinesPerDay,
+        windowSeconds: 24 * 60 * 60,
+        message: `You’ve voiced ${aiLimits.voiceLinesPerDay} lines today. Try again tomorrow.`,
+      })
+    }
+    return ok(
+      await translate({
+        workspaceId: workspace.id,
+        kitId: clip.brandKitId,
+        footageId: clip.id,
+        presentation,
+        language,
       })
     )
   } catch (error) {

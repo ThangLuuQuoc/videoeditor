@@ -14,6 +14,7 @@ import {
   appendClipSchema,
   applyVideoRecipeSchema,
   applyVideoStorySchema,
+  translateVideoSchema,
   applyVideoTemplateSchema,
   createProjectSchema,
   projectIdSchema,
@@ -229,6 +230,23 @@ export async function applyVideoStory(input: unknown): Promise<
     const result = await service.applyStoryToVideo(workspace.id, parsed.data)
     revalidatePath(`/videos/${parsed.data.projectId}`)
     refreshProjects()
+    return ok(result)
+  } catch (error) {
+    unstable_rethrow(error)
+    return err(toResultError(error))
+  }
+}
+
+/** Every clip of the video in another language (V3 M13 A). */
+export async function translateVideo(
+  input: unknown
+): Promise<Result<{ translated: number }>> {
+  try {
+    const parsed = translateVideoSchema.safeParse(input)
+    if (!parsed.success) throw invalid(parsed.error, "Pick a language.")
+    const { workspace } = await requireWorkspaceAccess("content:edit")
+    const result = await service.translateVideo(workspace.id, parsed.data)
+    revalidatePath(`/videos/${parsed.data.projectId}`)
     return ok(result)
   } catch (error) {
     unstable_rethrow(error)

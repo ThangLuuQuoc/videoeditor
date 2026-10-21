@@ -19,6 +19,7 @@ import {
   templateById,
   templatedMotion,
   templateTransition,
+  translateClip,
   type TemplatedClip,
   type VoicedStep,
 } from "@/features/footage"
@@ -37,6 +38,8 @@ import {
   type Recipe,
   type Shot,
   type Story,
+  type VersionLanguage,
+  withLanguageVersion,
   type ProjectClipInput,
   type Transition,
 } from "@/shared/motion"
@@ -745,6 +748,103 @@ async function saveVideoTemplate(
     // Neon is a network hop away; a video can have many clips.
     { timeout: 30_000, maxWait: 10_000 }
   )
+}
+
+/**
+ * Every clip of a video in another language (V3 M13 A): each clip's words
+ * translated and its voiceover voiced again, saved as that clip's version
+ * in one change. The original stays as it is; exports pick the language.
+ * A clip changed elsewhere meanwhile is a conflict.
+ */
+export async function translateVideo(
+  workspaceId: string,
+  input: { projectId: string; language: VersionLanguage },
+  options: { model?: LanguageModel; speech?: SpeechModel } = {}
+) {
+  const project = await db.project.findFirst({
+    where: { id: input.projectId, workspaceId },
+    select: {
+      brandKitId: true,
+      clips: { orderBy: { position: "asc" }, select: { footageId: true } },
+    },
+  })
+  if (!project) throw projectNotFound()
+  const kit = await getBrandKit(workspaceId, project.brandKitId)
+  if (!kit) throw projectNotFound()
+  const footageIds = [...new Set(project.clips.map((clip) => clip.footageId))]
+  if (footageIds.length === 0) {
+    throw new AppError("VALIDATION", "Add a clip to the video first.")
+  }
+
+  const translated: {
+    footageId: string
+    baseVersion: number
+    presentation: Presentation
+  }[] = []
+  for (const footageId of footageIds) {
+    const clip = await getFootage(workspaceId, footageId)
+    if (!clip) continue
+    const presentation = presentationFor(clip.presentation, kit.colors)
+    await consumeRateLimit({
+      key: `translations:${workspaceId}`,
+      limit: aiLimits.translationsPerDay,
+      windowSeconds: 24 * 60 * 60,
+      message: `You’ve translated ${aiLimits.translationsPerDay} clips today. Try again tomorrow.`,
+    })
+    const lines = presentation.voice?.lines.length ?? 0
+    if (lines > 0 && !voiceEnabled() && !options.speech) {
+      throw new AppError(
+        "PROVIDER_FAILED",
+        "Voiceover isn’t set up on this server."
+      )
+    }
+    for (let line = 0; line < lines; line++) {
+      await consumeRateLimit({
+        key: `voice-lines:${workspaceId}`,
+        limit: aiLimits.voiceLinesPerDay,
+        windowSeconds: 24 * 60 * 60,
+        message: `You’ve voiced ${aiLimits.voiceLinesPerDay} lines today. Try again tomorrow.`,
+      })
+    }
+    const { version } = await translateClip({
+      workspaceId,
+      kitId: project.brandKitId,
+      footageId,
+      presentation,
+      language: input.language,
+      model: options.model,
+      speech: options.speech,
+    })
+    translated.push({
+      footageId,
+      baseVersion: clip.presentationVersion,
+      presentation: {
+        ...presentation,
+        versions: withLanguageVersion(presentation.versions, version),
+      },
+    })
+  }
+
+  await db.$transaction(
+    async (tx) => {
+      for (const clip of translated) {
+        const saved = await tx.footage.updateMany({
+          where: {
+            id: clip.footageId,
+            workspaceId,
+            presentationVersion: clip.baseVersion,
+          },
+          data: {
+            presentation: clip.presentation as Prisma.InputJsonValue,
+            presentationVersion: { increment: 1 },
+          },
+        })
+        if (saved.count === 0) throw videoChanged()
+      }
+    },
+    { timeout: 30_000, maxWait: 10_000 }
+  )
+  return { translated: translated.length }
 }
 
 /** The template a video's clips last got, while it can be undone. */

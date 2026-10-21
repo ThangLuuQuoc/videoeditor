@@ -42,6 +42,7 @@ export {
   type StorySlot,
 } from "./lib/story-template"
 export { isPhotoType } from "./schema"
+export { translateClip } from "./lib/translate"
 export {
   speakLines,
   storeVoicedLine,

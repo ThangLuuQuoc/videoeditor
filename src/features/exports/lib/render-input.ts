@@ -12,7 +12,10 @@ import {
   presentationFor,
   transitionSchema,
   pictureKeys,
+  versionState,
   voiceKeys,
+  withVersion,
+  type VersionLanguage,
   type TimedShot,
 } from "@/shared/motion"
 import { signedFileUrl } from "@/shared/storage"
@@ -85,6 +88,8 @@ function siteLabelFor(url: string) {
 export type RenderInput = {
   name: string
   kitId: string
+  /** Languages it has versions in, and whether each is up to date. */
+  languages: { language: VersionLanguage; current: boolean }[]
   /** Why it can't be exported yet, or null. */
   notReady: string | null
   /** What the composition renders, minus the shape. */
@@ -99,7 +104,14 @@ export type RenderInput = {
 export async function loadRenderInput(
   workspaceId: string,
   target: ExportTarget,
-  { linkSeconds }: { linkSeconds: number }
+  {
+    linkSeconds,
+    language = null,
+  }: {
+    linkSeconds: number
+    /** A language version (V3 M13 A); null = the original. */
+    language?: VersionLanguage | null
+  }
 ): Promise<RenderInput | null> {
   const loaded =
     target.kind === "clip"
@@ -153,6 +165,7 @@ export async function loadRenderInput(
   const sign = (key: string | null) =>
     key ? signedFileUrl(key, linkSeconds) : Promise.resolve(null)
 
+  const languages = new Map<VersionLanguage, boolean>()
   const clips: ProjectStageClip[] = await Promise.all(
     loaded.clips.map(async ({ footage, transition }) => {
       const clip = footage as FootageRow
@@ -164,7 +177,14 @@ export async function loadRenderInput(
         clip.status === "READY" ? sign(clip.videoKey) : null,
         sign(clip.posterKey),
       ])
-      const presentation = presentationFor(clip.presentation, colors)
+      const original = presentationFor(clip.presentation, colors)
+      for (const version of original.versions) {
+        const state = versionState(original, version.language)
+        const known = languages.get(version.language)
+        languages.set(version.language, (known ?? true) && state === "current")
+      }
+      // The clip in the export's language: its words and voiceover.
+      const presentation = withVersion(original, language)
       const keys = voiceKeys(presentation.voice)
       const voiceLinks = await Promise.all(keys.map((key) => sign(key)))
       const pictures = pictureKeys(presentation)
@@ -220,6 +240,10 @@ export async function loadRenderInput(
   return {
     name: loaded.name,
     kitId: kit.id,
+    languages: [...languages].map(([each, current]) => ({
+      language: each,
+      current,
+    })),
     notReady,
     stage: {
       clips,

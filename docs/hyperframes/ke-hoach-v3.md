@@ -17,7 +17,7 @@
 | M9 Giọng đọc + phụ đề | ✅ với provider `test`; provider thật (Q5) chưa chọn; nhạc nền chưa làm |
 | M10, M11 | chưa bắt đầu |
 | M12 Template theo thể loại | 🔧 **nấu ăn bước 1 ✅** (form công thức → video 9:16, graphic `list`, `step`); **ảnh (1b) ✅** với provider `test`; **đọc các bước + công thức cho cả video (1c) ✅**; **timeline (bước 2) ✅** (clip ảnh, Ken Burns, mốc thời gian, thanh chương); data, làm đẹp chưa làm |
-| M13 Ý từ OpenCreator | chưa bắt đầu (thêm 21/10): bản dịch, bộ đăng bài, AI điền form, hàng loạt, ảnh AI cùng tông, thư viện template, giao diện tiếng Việt |
+| M13 Ý từ OpenCreator | 🔧 (thêm 21/10): **bản dịch (A) ✅**; bộ đăng bài (B) đang làm; AI điền form, hàng loạt, ảnh AI cùng tông, thư viện template, giao diện tiếng Việt chưa làm |
 
 Chi tiết từng hạng mục: `README.md` mục 2.
 
@@ -194,7 +194,7 @@ Lấy từ build plan §16, bổ sung ngưỡng đề xuất (chốt lại sau 2
 
 Theo thứ tự đề xuất (mã A–G là mã trong tài liệu đó):
 
-1. **Bản dịch cho video công thức và timeline (A)** · ≈ 3–4 ngày. Nút "Bản tiếng Anh": dịch `presentation.recipe` hoặc `presentation.story` bằng AI (adapter text đã có), đọc lại bằng giọng mới nếu video có lời đọc, dựng lại bằng chính template rồi render thành một phiên bản. Không cần nhận dạng giọng nói, vì chữ đã có cấu trúc.
+1. **Bản dịch cho video công thức và timeline (A)** · ✅ 21/10 (chi tiết: README mục 2, `decisions.md`). Ước lượng ban đầu ≈ 3–4 ngày. Nút "Bản tiếng Anh": dịch `presentation.recipe` hoặc `presentation.story` bằng AI (adapter text đã có), đọc lại bằng giọng mới nếu video có lời đọc, dựng lại bằng chính template rồi render thành một phiên bản. Không cần nhận dạng giọng nói, vì chữ đã có cấu trúc.
    - **Xong khi:** từ một video công thức tiếng Việt có lời đọc, một thao tác ra bản tiếng Anh (chữ trên thẻ, nhãn "Step", lời đọc); test unit + export thật.
 2. **Bộ đăng bài khi export (B)** · ≈ 3–4 ngày. Ảnh bìa: render một frame tĩnh bằng HyperFrames với tiêu đề lớn, 3 phương án (frame khác nhau hoặc bố cục khác) để chọn; tiêu đề, mô tả, hashtag theo nền tảng (TikTok, Reels, YouTube Shorts) bằng AI; trang chia sẻ dùng ảnh bìa cho `og:image`.
    - **Xong khi:** hộp thoại export có tab "Đăng bài" với ảnh bìa tải về được và chữ copy được; Playwright.

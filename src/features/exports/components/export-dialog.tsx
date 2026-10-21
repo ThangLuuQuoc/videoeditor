@@ -36,6 +36,8 @@ import { Switch } from "@/shared/ui/switch"
 import { toast } from "@/shared/ui/toast"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
+import { versionLanguageNames, type VersionLanguage } from "@/shared/motion"
+
 import { exportPanel, setShareLink, startExport } from "../actions"
 import type { ExportPanel } from "../queries"
 import { exportShapes, type ExportShape, type ExportTarget } from "../schema"
@@ -78,6 +80,8 @@ export function ExportDialog({
 }) {
   const [open, setOpen] = useState(false)
   const [shape, setShape] = useState<ExportShape>(defaultShape)
+  // A language version (M13 A), or null for the original.
+  const [language, setLanguage] = useState<VersionLanguage | null>(null)
   const [panel, setPanel] = useState<ExportPanel | null>(null)
   const [isStarting, startTransition] = useTransition()
   const [isSharing, shareTransition] = useTransition()
@@ -89,9 +93,15 @@ export function ExportDialog({
     else toast.add({ type: "error", title: result.error.message })
   }, [target])
 
+  const version = panel?.versions.find((v) => v.language === language)
+  const exportsHere = (language ? version?.exports : panel?.exports) ?? {}
   // Follow a running export, open or closed (the button shows progress).
+  const allExports = [
+    panel?.exports ?? {},
+    ...(panel?.versions.map((v) => v.exports) ?? []),
+  ]
   const running = exportShapes.find((each) =>
-    isRunning(panel?.exports[each]?.status)
+    allExports.some((exports) => isRunning(exports[each]?.status))
   )
   useEffect(() => {
     if (!running) return
@@ -99,18 +109,20 @@ export function ExportDialog({
     return () => clearInterval(timer)
   }, [running, load])
 
-  const view = panel?.exports[shape]
+  const view = exportsHere[shape]
   const file = view?.file ?? null
   const runningHere = isRunning(view?.status)
   const shareUrl =
     panel?.share?.enabled && typeof window !== "undefined"
       ? `${window.location.origin}/v/${panel.share.token}`
       : null
-  const anyFile = exportShapes.some((each) => panel?.exports[each]?.file)
+  const anyFile = exportShapes.some((each) =>
+    allExports.some((exports) => exports[each]?.file)
+  )
 
   function exportNow() {
     startTransition(async () => {
-      const result = await startExport({ target, shape })
+      const result = await startExport({ target, shape, language })
       if (result.ok) setPanel(result.data)
       else toast.add({ type: "error", title: result.error.message })
     })
@@ -139,7 +151,11 @@ export function ExportDialog({
   }
 
   const runningProgress = running
-    ? Math.round((panel?.exports[running]?.progress ?? 0) * 100)
+    ? Math.round(
+        (allExports.find((exports) => isRunning(exports[running]?.status))?.[
+          running
+        ]?.progress ?? 0) * 100
+      )
     : 0
 
   return (
@@ -150,6 +166,7 @@ export function ExportDialog({
         // may have changed).
         if (next) {
           setShape(defaultShape)
+          setLanguage(null)
           void load()
         }
         setOpen(next)
@@ -182,6 +199,39 @@ export function ExportDialog({
           <FieldGroup>
             <FieldSet>
               <FieldLegend>MP4</FieldLegend>
+              {panel.versions.length > 0 && (
+                <ToggleGroup
+                  aria-label="Language"
+                  variant="outline"
+                  value={[language ?? "original"]}
+                  onValueChange={(values) => {
+                    const next = values[0] as
+                      VersionLanguage | "original" | undefined
+                    if (next) setLanguage(next === "original" ? null : next)
+                  }}
+                  className="w-full"
+                >
+                  <ToggleGroupItem value="original" className="flex-1">
+                    Original
+                  </ToggleGroupItem>
+                  {panel.versions.map((each) => (
+                    <ToggleGroupItem
+                      key={each.language}
+                      value={each.language}
+                      className="flex-1"
+                    >
+                      {versionLanguageNames[each.language]}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              )}
+              {version && !version.current && (
+                <FieldDescription>
+                  The {versionLanguageNames[version.language]} words are out of
+                  date: some changed since it was translated. Translate again
+                  (Languages) to include them.
+                </FieldDescription>
+              )}
               <ToggleGroup
                 aria-label="Shape"
                 variant="outline"

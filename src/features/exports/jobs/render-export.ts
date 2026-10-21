@@ -10,7 +10,11 @@ import { uploadFromFile } from "@/shared/storage"
 import { renderFingerprint } from "../lib/fingerprint"
 import { exportFileKey } from "../lib/keys"
 import { loadRenderInput } from "../lib/render-input"
-import { exportShapeSchema, type ExportTarget } from "../schema"
+import {
+  exportLanguageSchema,
+  exportShapeSchema,
+  type ExportTarget,
+} from "../schema"
 import {
   failExport,
   finishExport,
@@ -42,8 +46,10 @@ export async function renderExport(
   const shape = exportShapeSchema.parse(row.shape)
 
   // Links last for the longest render the job allows.
+  const language = exportLanguageSchema.catch(null).parse(row.language)
   const input = await loadRenderInput(row.workspaceId, target, {
     linkSeconds: 2 * 60 * 60,
+    language,
   })
   if (!input) return
   if (input.notReady) {

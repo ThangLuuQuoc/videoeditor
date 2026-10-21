@@ -1,12 +1,14 @@
 import "server-only"
 
 import { db } from "@/shared/db"
+import type { VersionLanguage } from "@/shared/motion"
 import { signedFileUrl } from "@/shared/storage"
 
 import { downloadFileName } from "./lib/files"
 import { renderFingerprint } from "./lib/fingerprint"
 import { loadRenderInput } from "./lib/render-input"
 import {
+  exportLanguageSchema,
   exportShapes,
   exportShapeSchema,
   type ExportShape,
@@ -35,8 +37,17 @@ export type ExportView = {
 }
 
 export type ExportPanel = {
-  /** The newest export in each shape that has one. */
+  /** The newest export in each shape that has one (the original). */
   exports: Partial<Record<ExportShape, ExportView>>
+  /**
+   * Its language versions (V3 M13 A): whether each is up to date with the
+   * clips' words, and its own exports per shape.
+   */
+  versions: {
+    language: VersionLanguage
+    current: boolean
+    exports: Partial<Record<ExportShape, ExportView>>
+  }[]
   share: { token: string; enabled: boolean } | null
   /** Why it can't be exported now, or null. */
   notReady: string | null
@@ -66,6 +77,7 @@ export async function getExportPanel(
         sizeBytes: true,
         fileKey: true,
         fingerprint: true,
+        language: true,
       },
     }),
     db.shareLink.findFirst({
@@ -74,29 +86,53 @@ export async function getExportPanel(
     }),
   ])
   if (!input) return null
-  const fingerprint = renderFingerprint(input.stage)
 
-  const exports: ExportPanel["exports"] = {}
-  for (const shape of exportShapes) {
-    // Newest first.
-    const inShape = rows.filter((row) => row.shape === shape)
-    const latest = inShape[0]
-    if (!latest) continue
-    const done = inShape.find((row) => row.status === "READY" && row.fileKey)
-    exports[shape] = {
-      status: latest.status,
-      progress: latest.progress,
-      errorMessage: latest.errorMessage,
-      file: done?.fileKey
-        ? {
-            downloadUrl: `/api/exports/${done.id}/download`,
-            sizeBytes: done.sizeBytes,
-            current: done.fingerprint === fingerprint,
-          }
-        : null,
+  /** Each shape's newest export in `language`, compared with `fingerprint`. */
+  const byShape = (language: VersionLanguage | null, fingerprint: string) => {
+    const exports: ExportPanel["exports"] = {}
+    for (const shape of exportShapes) {
+      // Newest first.
+      const inShape = rows.filter(
+        (row) => row.shape === shape && (row.language ?? null) === language
+      )
+      const latest = inShape[0]
+      if (!latest) continue
+      const done = inShape.find((row) => row.status === "READY" && row.fileKey)
+      exports[shape] = {
+        status: latest.status,
+        progress: latest.progress,
+        errorMessage: latest.errorMessage,
+        file: done?.fileKey
+          ? {
+              downloadUrl: `/api/exports/${done.id}/download`,
+              sizeBytes: done.sizeBytes,
+              current: done.fingerprint === fingerprint,
+            }
+          : null,
+      }
     }
+    return exports
   }
-  return { exports, share, notReady: input.notReady }
+
+  const versions: ExportPanel["versions"] = []
+  for (const { language, current } of input.languages) {
+    const version = await loadRenderInput(workspaceId, target, {
+      linkSeconds: hour,
+      language,
+    })
+    if (!version) continue
+    versions.push({
+      language,
+      current,
+      exports: byShape(language, renderFingerprint(version.stage)),
+    })
+  }
+  return {
+    exports: byShape(null, renderFingerprint(input.stage)),
+    versions,
+    share,
+    notReady: input.notReady,
+  }
 }
 
 /**
@@ -160,12 +196,22 @@ export async function getSharedVideo(token: string) {
 export async function getExportFile(workspaceId: string, exportId: string) {
   const row = await db.export.findFirst({
     where: { id: exportId, workspaceId, status: "READY" },
-    select: { fileKey: true, name: true, shape: true, sizeBytes: true },
+    select: {
+      fileKey: true,
+      name: true,
+      shape: true,
+      sizeBytes: true,
+      language: true,
+    },
   })
   const shape = exportShapeSchema.safeParse(row?.shape).data
   if (!row?.fileKey || !shape) return null
   return {
     url: await signedFileUrl(row.fileKey, 5 * 60),
-    fileName: downloadFileName(row.name, shape),
+    fileName: downloadFileName(
+      row.name,
+      shape,
+      exportLanguageSchema.catch(null).parse(row.language)
+    ),
   }
 }

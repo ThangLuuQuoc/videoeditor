@@ -419,3 +419,65 @@ test("photos become clips, and a timeline runs across them, undone in one step",
   await expect(page.getByText("Template undone")).toBeVisible()
   expect(consoleProblems).toEqual([])
 })
+
+test("an English version of a recipe: made, previewed, offered in Export", async ({
+  page,
+  signedInUser: _user,
+  consoleProblems,
+}) => {
+  test.skip(!hasStorage, "Needs a bucket (NEON_BRANCH or STORAGE_TESTS)")
+  test.setTimeout(150_000)
+  const video = await makeTestVideo(16)
+  await createKitByHand(page)
+  await page.getByRole("tab", { name: "Footage" }).click()
+  await page.getByTestId("footage-file").setInputFiles(video)
+  const card = page.getByRole("listitem").filter({ hasText: "Product demo" })
+  await expect(card.getByText("Ready")).toBeVisible({ timeout: 90_000 })
+  await card.getByRole("link", { name: "Product demo" }).click()
+  const tools = page.getByRole("tablist", { name: "Editor tools" })
+
+  await tools.getByRole("tab", { name: "Templates" }).click()
+  const form = page.getByRole("form", { name: "Recipe" })
+  await form.getByRole("textbox", { name: "Dish" }).fill("Mì bơ tỏi")
+  await form
+    .getByRole("textbox", { name: "Steps" })
+    .fill("Luộc mì\nPhi tỏi với bơ")
+  await form.getByRole("button", { name: "Tiếng Việt" }).click()
+  await form.getByRole("switch", { name: "Read the steps aloud" }).click()
+  await form.getByRole("button", { name: "Build recipe video" }).click()
+  await expect(page.getByText("Recipe video built")).toBeVisible({
+    timeout: 30_000,
+  })
+
+  // English, from the Languages tool: translated and read again.
+  await tools.getByRole("tab", { name: "Languages" }).click()
+  const english = page
+    .getByRole("list", { name: "Languages" })
+    .getByRole("listitem", { name: "English" })
+  await expect(english.getByText("Not made yet")).toBeVisible()
+  await expectNoViolations(page)
+  await english.getByRole("button", { name: "Make English version" }).click()
+  await expect(page.getByText("English version ready")).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect(english.getByText("Up to date")).toBeVisible()
+  await expect(
+    english.getByRole("button", { name: "Previewing" })
+  ).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("status")).toContainText("Previewing English")
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
+
+  // Export offers it, next to the original.
+  await page.getByRole("button", { name: "Export" }).click()
+  const dialog = page.getByRole("dialog", { name: "Export and share" })
+  const languages = dialog.getByRole("group", { name: "Language" })
+  await expect(
+    languages.getByRole("button", { name: "Original" })
+  ).toBeVisible()
+  await languages.getByRole("button", { name: "English" }).click()
+  await expect(
+    languages.getByRole("button", { name: "English" })
+  ).toHaveAttribute("aria-pressed", "true")
+  await expect(dialog.getByRole("button", { name: "Export MP4" })).toBeEnabled()
+  expect(consoleProblems).toEqual([])
+})

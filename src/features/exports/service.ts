@@ -2,6 +2,7 @@ import "server-only"
 
 import { randomBytes } from "node:crypto"
 
+import type { VersionLanguage } from "@/shared/motion"
 import { db } from "@/shared/db"
 import { AppError } from "@/shared/lib/errors"
 import { deleteFile } from "@/shared/storage"
@@ -21,13 +22,15 @@ export const activeStatuses = ["QUEUED", "RENDERING"] as const
 export async function findRunningExport(
   workspaceId: string,
   target: ExportTarget,
-  shape: ExportShape
+  shape: ExportShape,
+  language: VersionLanguage | null = null
 ) {
   return db.export.findFirst({
     where: {
       workspaceId,
       ...targetWhere(target),
       shape,
+      language,
       status: { in: [...activeStatuses] },
     },
     select: { id: true },
@@ -38,10 +41,11 @@ export async function createExport(
   workspaceId: string,
   target: ExportTarget,
   shape: ExportShape,
-  name: string
+  name: string,
+  language: VersionLanguage | null = null
 ) {
   return db.export.create({
-    data: { workspaceId, ...targetWhere(target), shape, name },
+    data: { workspaceId, ...targetWhere(target), shape, name, language },
     select: { id: true },
   })
 }
@@ -61,6 +65,7 @@ export async function getExportForRender(exportId: string) {
       footageId: true,
       projectId: true,
       shape: true,
+      language: true,
       status: true,
     },
   })
@@ -82,7 +87,8 @@ export async function saveProgress(exportId: string, progress: number) {
 
 /**
  * Marks the export READY with its file, then removes the target's older
- * exports in the same shape (rows and files): only the newest is kept.
+ * exports in the same shape and language (rows and files): only the
+ * newest of each is kept.
  */
 export async function finishExport(
   exportId: string,
@@ -99,7 +105,7 @@ export async function finishExport(
       errorMessage: null,
       finishedAt: new Date(),
     },
-    select: { footageId: true, projectId: true, shape: true },
+    select: { footageId: true, projectId: true, shape: true, language: true },
   })
   const older = await db.export.findMany({
     where: {
@@ -107,6 +113,7 @@ export async function finishExport(
       footageId: done.footageId,
       projectId: done.projectId,
       shape: done.shape,
+      language: done.language,
       status: { in: ["READY", "FAILED"] },
     },
     select: { id: true, fileKey: true },

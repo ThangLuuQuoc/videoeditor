@@ -36,10 +36,11 @@ export async function startExport(
   try {
     const parsed = startExportSchema.safeParse(input)
     if (!parsed.success) throw invalid()
-    const { target, shape } = parsed.data
+    const { target, shape, language } = parsed.data
     const { workspace } = await requireWorkspaceAccess("content:edit")
     const render = await loadRenderInput(workspace.id, target, {
       linkSeconds: 60,
+      language,
     })
     if (!render) {
       await service.assertTarget(workspace.id, target)
@@ -48,7 +49,15 @@ export async function startExport(
     if (render.notReady) throw new AppError("VALIDATION", render.notReady)
 
     // A second click while one runs doesn't render twice.
-    if (!(await service.findRunningExport(workspace.id, target, shape))) {
+    if (language && !render.languages.some((v) => v.language === language)) {
+      throw new AppError(
+        "VALIDATION",
+        "Make that language version first, then export it."
+      )
+    }
+    if (
+      !(await service.findRunningExport(workspace.id, target, shape, language))
+    ) {
       await consumeRateLimit({
         key: `exports:${workspace.id}`,
         limit: dailyExports,
@@ -59,7 +68,8 @@ export async function startExport(
         workspace.id,
         target,
         shape,
-        render.name
+        render.name,
+        language
       )
       await enqueue(renderExportJob, { exportId: id }).catch(
         async (error: unknown) => {

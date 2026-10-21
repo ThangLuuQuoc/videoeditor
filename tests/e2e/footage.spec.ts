@@ -753,6 +753,7 @@ test("layers: drop items on the timeline, stack them, and move them on the video
     "Cuts",
     "Text",
     "Voice",
+    "Languages",
     "Graphics",
     "Lens",
     "Style",

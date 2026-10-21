@@ -36,6 +36,9 @@ const envSchema = z.object({
   // "off" skips AI vision in the worker (describing key moments). Tests and
   // CI turn it off; unit tests cover it with a mock model.
   AI_VISION: z.enum(["on", "off"]).default("on"),
+  // "on": writing that has a stand-in (translations, posting kits) uses it
+  // instead of the model — predictable words for development and CI only.
+  AI_TEXT_TEST: z.enum(["off", "on"]).default("off"),
 
   // Voiceover (optional: unset turns it off). "test" is a tone, for
   // development and CI only.

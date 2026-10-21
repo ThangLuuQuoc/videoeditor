@@ -378,6 +378,8 @@ model Export {
   projectId    String?
   // "16:9" | "9:16" | "1:1" | "4:5" (the stage shapes, validated by the exports slice).
   shape        String
+  // A language version (V3 M13: "vi" | "en"), or null for the original.
+  language     String?
   status       ExportStatus @default(QUEUED)
   // 0–1 while rendering.
   progress     Float        @default(0)

@@ -6,6 +6,7 @@ import { kenBurnsModes } from "./ken-burns"
 import { lensSchema } from "./lens"
 import { recipeSchema } from "./recipe"
 import { storySchema } from "./story"
+import { languageVersionSchema } from "./versions"
 import { textItemSchema, textLimits, textStyleSchema } from "./text"
 import { voiceSchema } from "./voice"
 
@@ -103,6 +104,8 @@ export const presentationSchema = z.object({
   recipe: recipeSchema.nullable().default(null),
   /** The story the timeline template was built from (M12); null = none. */
   story: storySchema.nullable().default(null),
+  /** The clip in other languages: their words and voiceover (M13 A). */
+  versions: z.array(languageVersionSchema).max(4).default([]),
   /** Depth of field and progressive blur. */
   lens: lensSchema.default({
     depthOfField: { enabled: false, fStop: 2.8, maxBlur: 0.6 },

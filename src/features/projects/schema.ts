@@ -6,6 +6,7 @@ import {
   projectLimits,
   recipeSchema,
   storySchema,
+  versionLanguages,
 } from "@/shared/motion"
 
 const idSchema = z.string().min(1).max(64)
@@ -74,6 +75,12 @@ export const applyVideoStorySchema = z.object({
   projectId: idSchema,
   baseVersion: z.number().int().min(0),
   story: storySchema,
+})
+
+/** Every clip of a video in another language (V3 M13 A). */
+export const translateVideoSchema = z.object({
+  projectId: idSchema,
+  language: z.enum(versionLanguages),
 })
 
 /** Undo the video's last template, from the version it was seen at. */

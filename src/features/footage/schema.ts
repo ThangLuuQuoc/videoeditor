@@ -3,6 +3,7 @@ import { z } from "zod"
 import {
   presentationSchema,
   recipeLimits,
+  versionLanguages,
   shotSchema,
   voiceLanguages,
   voiceLimits,
@@ -175,4 +176,12 @@ export const voiceRecipeStepsSchema = z.object({
     .array(z.string().trim().min(1).max(recipeLimits.step))
     .min(1, "Add at least one step.")
     .max(recipeLimits.steps),
+})
+
+/** A clip translated into another language (V3 M13 A). */
+export const translateClipSchema = z.object({
+  footageId: idSchema,
+  language: z.enum(versionLanguages),
+  /** The clip as the editor shows it now (saves may still be on the way). */
+  presentation: presentationSchema,
 })

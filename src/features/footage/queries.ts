@@ -1,7 +1,7 @@
 import "server-only"
 
 import { db } from "@/shared/db"
-import { pictureKeys, voiceKeys, type Presentation } from "@/shared/motion"
+import { allVoiceKeys, pictureKeys, type Presentation } from "@/shared/motion"
 import { signedFileUrl } from "@/shared/storage"
 
 /** A kit's clips (or, without a kit, the workspace's), newest first. */
@@ -91,7 +91,7 @@ export async function voiceUrlsFor(
   presentation: Presentation,
   seconds = 3600
 ): Promise<Record<string, string>> {
-  const keys = voiceKeys(presentation.voice)
+  const keys = allVoiceKeys(presentation)
   const urls = await Promise.all(keys.map((key) => signedFileUrl(key, seconds)))
   return Object.fromEntries(keys.map((key, index) => [key, urls[index]!]))
 }
