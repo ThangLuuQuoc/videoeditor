@@ -40,6 +40,7 @@ import { versionLanguageNames, type VersionLanguage } from "@/shared/motion"
 
 import { exportPanel, setShareLink, startExport } from "../actions"
 import type { ExportPanel } from "../queries"
+import { PostingKit } from "./posting-kit"
 import { exportShapes, type ExportShape, type ExportTarget } from "../schema"
 
 const shapeNames: Record<ExportShape, string> = {
@@ -72,11 +73,20 @@ export function ExportDialog({
   target,
   defaultShape = "16:9",
   canEdit,
+  name = "Video",
+  coverTitle,
+  coverFont = "sans-serif",
 }: {
   target: ExportTarget
   /** The shape the editor shows now. */
   defaultShape?: ExportShape
   canEdit: boolean
+  /** The clip's or video's name (a cover's file name). */
+  name?: string
+  /** What a cover says to start with (the dish, the story, the name). */
+  coverTitle?: string
+  /** The brand's heading font for covers (a CSS font-family). */
+  coverFont?: string
 }) {
   const [open, setOpen] = useState(false)
   const [shape, setShape] = useState<ExportShape>(defaultShape)
@@ -183,7 +193,7 @@ export function ExportDialog({
           {running ? `Exporting ${runningProgress}%` : "Export"}
         </span>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Export and share</DialogTitle>
           <DialogDescription>
@@ -319,6 +329,28 @@ export function ExportDialog({
                 </FieldDescription>
               )}
             </FieldSet>
+
+            {file?.videoUrl && (
+              <>
+                <Separator />
+                <FieldSet>
+                  <FieldLegend>Posting kit</FieldLegend>
+                  <PostingKit
+                    key={file.videoUrl}
+                    target={target}
+                    shape={shape}
+                    language={language}
+                    videoUrl={file.videoUrl}
+                    name={name}
+                    coverTitle={coverTitle ?? name}
+                    coverFont={coverFont}
+                    coverUrl={panel.coverUrl}
+                    canEdit={canEdit}
+                    onPanel={setPanel}
+                  />
+                </FieldSet>
+              </>
+            )}
 
             <Separator />
 

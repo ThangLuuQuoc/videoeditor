@@ -1715,6 +1715,13 @@ export function FootageEditor({
             }
             defaultShape={aspect}
             canEdit={!readOnly}
+            name={video?.single ? video.name : clip.name}
+            coverTitle={
+              presentation.recipe?.dish ??
+              presentation.story?.title ??
+              (video?.single ? video.name : clip.name)
+            }
+            coverFont={stageFonts.heading}
           />
           {!readOnly && !video && (
             <DeleteClipButton

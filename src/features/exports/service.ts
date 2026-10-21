@@ -181,3 +181,36 @@ export async function assertTarget(workspaceId: string, target: ExportTarget) {
     )
   }
 }
+
+/**
+ * Puts a cover on the target's share link (creating the link, off, if
+ * there's none yet) and returns the cover it replaced, to delete.
+ */
+export async function setShareCover(
+  workspaceId: string,
+  target: ExportTarget,
+  coverKey: string
+) {
+  const where = targetWhere(target)
+  const existing = await db.shareLink.findFirst({
+    where: { workspaceId, ...where },
+    select: { id: true, coverKey: true },
+  })
+  if (existing) {
+    await db.shareLink.update({
+      where: { id: existing.id },
+      data: { coverKey },
+    })
+    return { previousCoverKey: existing.coverKey }
+  }
+  await db.shareLink.create({
+    data: {
+      workspaceId,
+      ...where,
+      token: newShareToken(),
+      enabled: false,
+      coverKey,
+    },
+  })
+  return { previousCoverKey: null }
+}

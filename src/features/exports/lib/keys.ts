@@ -21,3 +21,21 @@ export function exportFileKey(
     `${exportId}.mp4`
   )
 }
+
+/** A share link's cover image (V3 M13 B), next to the exports. */
+export function exportCoverKey(
+  workspaceId: string,
+  kitId: string,
+  target: { kind: "clip" | "video"; id: string },
+  file: string
+) {
+  return workspaceFileKey(
+    workspaceId,
+    "brand-kits",
+    kitId,
+    target.kind === "clip" ? "footage" : "projects",
+    target.id,
+    "exports",
+    file
+  )
+}

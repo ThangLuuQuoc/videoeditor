@@ -31,4 +31,6 @@ export const aiLimits = {
   recipePicturesPerDay: 60,
   /** Clips translated into another language, per workspace per day. */
   translationsPerDay: 60,
+  /** Posting kits the AI writes (title, description, hashtags) per day. */
+  postKitsPerDay: 60,
 } as const

@@ -30,6 +30,8 @@ export type ExportView = {
   file: {
     /** Our download route (it names the file). */
     downloadUrl: string
+    /** A signed link to play it (the cover maker reads its frames). */
+    videoUrl: string
     sizeBytes: number | null
     /** Made from what the editor shows now (false: edited since). */
     current: boolean
@@ -49,6 +51,8 @@ export type ExportPanel = {
     exports: Partial<Record<ExportShape, ExportView>>
   }[]
   share: { token: string; enabled: boolean } | null
+  /** The share link's cover (V3 M13 B), signed; null = none. */
+  coverUrl: string | null
   /** Why it can't be exported now, or null. */
   notReady: string | null
 }
@@ -82,10 +86,20 @@ export async function getExportPanel(
     }),
     db.shareLink.findFirst({
       where: { workspaceId, ...targetWhere(target) },
-      select: { token: true, enabled: true },
+      select: { token: true, enabled: true, coverKey: true },
     }),
   ])
   if (!input) return null
+  const fileUrls = new Map(
+    await Promise.all(
+      rows
+        .filter((row) => row.status === "READY" && row.fileKey)
+        .map(
+          async (row) =>
+            [row.id, await signedFileUrl(row.fileKey!, hour)] as const
+        )
+    )
+  )
 
   /** Each shape's newest export in `language`, compared with `fingerprint`. */
   const byShape = (language: VersionLanguage | null, fingerprint: string) => {
@@ -105,6 +119,7 @@ export async function getExportPanel(
         file: done?.fileKey
           ? {
               downloadUrl: `/api/exports/${done.id}/download`,
+              videoUrl: fileUrls.get(done.id) ?? "",
               sizeBytes: done.sizeBytes,
               current: done.fingerprint === fingerprint,
             }
@@ -130,7 +145,10 @@ export async function getExportPanel(
   return {
     exports: byShape(null, renderFingerprint(input.stage)),
     versions,
-    share,
+    share: share && { token: share.token, enabled: share.enabled },
+    coverUrl: share?.coverKey
+      ? await signedFileUrl(share.coverKey, hour)
+      : null,
     notReady: input.notReady,
   }
 }
@@ -145,6 +163,7 @@ export async function getSharedVideo(token: string) {
     where: { token },
     select: {
       enabled: true,
+      coverKey: true,
       footage: { select: { name: true, posterKey: true } },
       project: {
         select: {
@@ -162,8 +181,12 @@ export async function getSharedVideo(token: string) {
   })
   if (!link?.enabled) return null
   const name = link.footage?.name ?? link.project?.name ?? "Video"
+  // The cover made for it, else the first clip's poster.
   const posterKey =
-    link.footage?.posterKey ?? link.project?.clips[0]?.footage.posterKey ?? null
+    link.coverKey ??
+    link.footage?.posterKey ??
+    link.project?.clips[0]?.footage.posterKey ??
+    null
 
   const latest = await db.export.findFirst({
     where: {
@@ -180,6 +203,10 @@ export async function getSharedVideo(token: string) {
   return {
     name,
     posterUrl: posterKey ? await signedFileUrl(posterKey, linkSeconds) : null,
+    /** The cover made for this video (shown before it plays), if any. */
+    coverUrl: link.coverKey
+      ? await signedFileUrl(link.coverKey, linkSeconds)
+      : null,
     video: latest?.fileKey
       ? {
           url: await signedFileUrl(latest.fileKey, linkSeconds),

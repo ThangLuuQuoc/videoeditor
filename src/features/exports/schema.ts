@@ -27,3 +27,9 @@ export const shareLinkSchema = z.object({
   target: exportTargetSchema,
   enabled: z.boolean(),
 })
+
+/** A posting kit's words (V3 M13 B), in the export's language. */
+export const writePostsSchema = z.object({
+  target: exportTargetSchema,
+  language: exportLanguageSchema.default(null),
+})

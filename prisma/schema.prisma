@@ -416,6 +416,9 @@ model ShareLink {
   footageId   String?  @unique
   projectId   String?  @unique
   enabled     Boolean  @default(true)
+  // The cover the page shows before playing and in link previews (V3 M13
+  // B): a PNG or JPEG in the target's exports folder; null = none.
+  coverKey    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

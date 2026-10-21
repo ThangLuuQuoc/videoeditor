@@ -57,8 +57,10 @@ export default async function SharedVideoPage({
         </h1>
         {shared.video ? (
           <video
-            // No poster: the clip's is its recording, not the export's
-            // shape; the browser shows the export's first frame instead.
+            // The cover made for it (M13 B), if any. Not the clip's own
+            // poster: that's its recording, not the export's shape; without
+            // a cover the browser shows the export's first frame.
+            poster={shared.coverUrl ?? undefined}
             src={shared.video.url}
             controls
             playsInline

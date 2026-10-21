@@ -580,6 +580,13 @@ export function ProjectEditor({
         <ExportDialog
           target={{ kind: "video", id: project.id }}
           canEdit={!readOnly}
+          name={project.name}
+          coverTitle={
+            project.clips[0]?.presentation.recipe?.dish ??
+            project.clips[0]?.presentation.story?.title ??
+            project.name
+          }
+          coverFont={fonts.heading}
         />
       </header>
 

@@ -190,3 +190,70 @@ test("a video exports and shares as the video, from its editor", async ({
   )
   expect(consoleProblems).toEqual([])
 })
+
+test("a posting kit: covers from the export, one on the share link, posts to copy", async ({
+  page,
+  browser,
+  signedInUser: _user,
+  consoleProblems,
+}) => {
+  test.skip(!hasStorage, "Needs a bucket (NEON_BRANCH or STORAGE_TESTS)")
+  test.setTimeout(300_000)
+  await openUploadedClip(page)
+
+  await page.getByRole("button", { name: "Export" }).click()
+  const dialog = page.getByRole("dialog", { name: "Export and share" })
+  await dialog.getByRole("button", { name: "Export MP4" }).click()
+  await expect(dialog.getByRole("link", { name: /Download MP4/ })).toBeVisible({
+    timeout: 180_000,
+  })
+
+  // Covers: three layouts drawn from the export's own frame.
+  await dialog.getByRole("textbox", { name: "Cover title" }).fill("Ship faster")
+  await dialog.getByRole("button", { name: "Make covers" }).click()
+  const covers = dialog.getByRole("radiogroup", { name: "Covers" })
+  await expect(covers.getByRole("radio")).toHaveCount(3, { timeout: 20_000 })
+  await covers.getByRole("radio", { name: "Title in the middle" }).click()
+  await expect(
+    covers.getByRole("radio", { name: "Title in the middle" })
+  ).toHaveAttribute("aria-checked", "true")
+  const file = page.waitForEvent("download")
+  await dialog.getByRole("link", { name: "Download cover" }).click()
+  expect((await file).suggestedFilename()).toBe("Product demo cover.png")
+  await dialog.getByRole("button", { name: "Use on the share link" }).click()
+  await expect(page.getByText("Cover saved")).toBeVisible()
+  await expectNoViolations(page)
+
+  // Posts for each platform (stand-in words here), ready to copy.
+  await dialog.getByRole("button", { name: "Write posts" }).click()
+  await expect(
+    dialog.getByRole("textbox", { name: "Title", exact: true })
+  ).toHaveValue("Product demo (TikTok)")
+  await dialog
+    .getByRole("group", { name: "Platform" })
+    .getByRole("button", { name: "Shorts" })
+    .click()
+  await expect(
+    dialog.getByRole("textbox", { name: "Title", exact: true })
+  ).toHaveValue("Product demo (YouTube Shorts)")
+  await expect(dialog.getByRole("textbox", { name: "Hashtags" })).toHaveValue(
+    /#productdemo/
+  )
+
+  // The share link shows the cover before the video plays.
+  await dialog
+    .getByRole("switch", { name: "Anyone with the link can watch" })
+    .click()
+  const url = await dialog
+    .getByRole("textbox", { name: "Share link" })
+    .inputValue()
+  const visitor = await browser.newContext()
+  const watch = await visitor.newPage()
+  await watch.goto(url)
+  await expect(watch.locator("video")).toHaveAttribute(
+    "poster",
+    /exports\/cover-/
+  )
+  await visitor.close()
+  expect(consoleProblems).toEqual([])
+})
